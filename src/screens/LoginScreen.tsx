@@ -6,31 +6,62 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Text from '../components/ui/Text'
 
+type Mode = 'login' | 'register'
+
 export default function LoginScreen(): React.JSX.Element {
-  const { login } = useAuth()
+  const { login, register } = useAuth()
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [mode, setMode]             = useState<Mode>('login')
+  const [email, setEmail]           = useState('')
+  const [password, setPassword]     = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [name, setName]             = useState('')
+  const [isLoading, setIsLoading]   = useState(false)
+  const [error, setError]           = useState<string | null>(null)
 
-  async function handleLogin(): Promise<void> {
+  const isRegister = mode === 'register'
+
+  async function handleSubmit(): Promise<void> {
     if (!email.trim() || !password.trim()) {
       setError('Please enter your email and password.')
       return
+    }
+
+    if (isRegister) {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.')
+        return
+      }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters.')
+        return
+      }
     }
 
     setIsLoading(true)
     setError(null)
 
     try {
-      await login(email.trim(), password)
+      if (isRegister) {
+        await register(email.trim(), password, name.trim() || undefined)
+      } else {
+        await login(email.trim(), password)
+      }
       // RootNavigator re-renders automatically when token is set in AuthContext
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Login failed. Please try again.')
+      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  function switchMode(): void {
+    setMode(m => m === 'login' ? 'register' : 'login')
+    setError(null)
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setName('')
   }
 
   return (
@@ -47,11 +78,26 @@ export default function LoginScreen(): React.JSX.Element {
             style={styles.logo}
           />
           <Text style={styles.title}>NextStep</Text>
-          <Text style={styles.subtitle}>Your academic companion</Text>
+          <Text style={styles.subtitle}>
+            {isRegister ? 'Create your account' : 'Your academic companion'}
+          </Text>
         </View>
 
         {/* ── Form ── */}
         <View>
+          {/* Display name (register only) */}
+          {isRegister && (
+            <Input
+              label="Display Name (optional)"
+              value={name}
+              onChangeText={(v) => { setName(v); setError(null) }}
+              placeholder="Jane Doe"
+              autoCapitalize="words"
+              editable={!isLoading}
+              returnKeyType="next"
+            />
+          )}
+
           <Input
             label="Email"
             value={email}
@@ -69,25 +115,58 @@ export default function LoginScreen(): React.JSX.Element {
             label="Password"
             value={password}
             onChangeText={(v) => { setPassword(v); setError(null) }}
-            placeholder="Enter your password"
+            placeholder={isRegister ? 'At least 6 characters' : 'Enter your password'}
             secureTextEntry
             editable={!isLoading}
-            returnKeyType="done"
-            onSubmitEditing={() => void handleLogin()}
-            error={error}
+            returnKeyType={isRegister ? 'next' : 'done'}
+            onSubmitEditing={() => { if (!isRegister) void handleSubmit() }}
             testID="password-input"
           />
 
+          {/* Confirm password (register only) */}
+          {isRegister && (
+            <Input
+              label="Confirm Password"
+              value={confirmPassword}
+              onChangeText={(v) => { setConfirmPassword(v); setError(null) }}
+              placeholder="Re-enter your password"
+              secureTextEntry
+              editable={!isLoading}
+              returnKeyType="done"
+              onSubmitEditing={() => void handleSubmit()}
+              error={error}
+            />
+          )}
+
+          {!isRegister && error && (
+            <Text style={styles.errorText}>{error}</Text>
+          )}
+
           <Button
-            label="Log In"
-            onPress={() => void handleLogin()}
+            label={isLoading
+              ? (isRegister ? 'Creating account...' : 'Logging in...')
+              : (isRegister ? 'Create Account' : 'Log In')}
+            onPress={() => void handleSubmit()}
             isLoading={isLoading}
             testID="login-button"
           />
 
-          <Text style={styles.hint}>
-            Test account: test@nextstep.com / nextstep123
+          {/* ── Mode switch ── */}
+          <Text
+            style={styles.switchText}
+            onPress={switchMode}
+          >
+            {isRegister
+              ? 'Already have an account? Log In'
+              : "Don't have an account? Create one"}
           </Text>
+
+          {/* ── Test hint (login only) ── */}
+          {!isRegister && (
+            <Text style={styles.hint}>
+              Test account: test@nextstep.com / nextstep123
+            </Text>
+          )}
         </View>
 
       </View>
@@ -132,5 +211,18 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 16,
+  },
+  switchText: {
+    fontSize: 13,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 20,
+    fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 13,
+    color: colors.error,
+    textAlign: 'center',
+    marginBottom: 8,
   },
 })

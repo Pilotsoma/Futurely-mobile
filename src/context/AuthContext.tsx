@@ -14,6 +14,7 @@ interface AuthContextValue {
   token: string | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, name?: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -69,6 +70,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     setUser(data.user)
   }
 
+  async function register(email: string, password: string, name?: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, name }),
+    })
+
+    if (!res.ok) {
+      const body = (await res.json()) as { error?: { message?: string } }
+      throw new Error(body.error?.message ?? 'Registration failed')
+    }
+
+    const { data } = (await res.json()) as { data: { token: string; user: User } }
+    await setToken(data.token)
+    setTokenState(data.token)
+    setUser(data.user)
+  }
+
   async function logout(): Promise<void> {
     await clearToken()
     setTokenState(null)
@@ -76,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
