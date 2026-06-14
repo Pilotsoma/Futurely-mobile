@@ -91,13 +91,16 @@ function ErrorView({
   message: string
   onRetry: () => void
 }): React.JSX.Element {
+  const isAuthError = message.startsWith('401') || message.toLowerCase().includes('unauthorized')
   return (
     <View style={styles.centerState}>
       <Text variant="h3" color={colors.error} style={styles.stateTitle}>
         Could Not Load Planner
       </Text>
       <Text variant="body" color={colors.textSecondary} style={styles.stateMessage}>
-        {message}
+        {isAuthError
+          ? 'Sign in to your NextStep account to view your assignments here.'
+          : message}
       </Text>
       <Button label="Try Again" onPress={onRetry} />
     </View>
@@ -374,9 +377,11 @@ function AiPlanView({
   if (error !== null) {
     return (
       <View style={styles.centerState}>
-        <Text variant="h3" color={colors.error} style={styles.stateTitle}>Could Not Generate Plan</Text>
-        <Text variant="body" color={colors.textSecondary} style={styles.stateMessage}>{error}</Text>
-        <Button label="Try Again" onPress={onLoad} />
+        <Ionicons name="sparkles-outline" size={40} color={colors.textMuted} style={{ marginBottom: 16 }} />
+        <Text variant="h2" style={styles.stateTitle}>AI Study Plan</Text>
+        <Text variant="body" color={colors.textSecondary} style={styles.stateMessage}>
+          Your study plan will appear here once your grades sync. Make sure your school portal is connected in Settings.
+        </Text>
       </View>
     )
   }

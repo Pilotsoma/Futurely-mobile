@@ -1,5 +1,6 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -12,6 +13,7 @@ import Skeleton from '../components/ui/Skeleton'
 import Button from '../components/ui/Button'
 import { colors } from '../constants/colors'
 import { fetchStudentData, type StudentData, type Assignment } from '../api/studentApi'
+import { getSyncStatus, type SyncStatus } from '../api/portalApi'
 import type { AppParamList } from '../navigation/AppNavigator'
 
 type NavProp = NativeStackNavigationProp<AppParamList>
@@ -70,17 +72,42 @@ function LoadingSkeleton(): React.JSX.Element {
 }
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }): React.JSX.Element {
+  const isAuthError = message.startsWith('401') || message.toLowerCase().includes('unauthorized')
   return (
     <View style={styles.centerState}>
       <Text variant="h3" color={colors.error} style={{ marginBottom: 8, textAlign: 'center' }}>
         Unable to Load Dashboard
       </Text>
       <Text variant="body" color={colors.textSecondary} style={{ marginBottom: 24, textAlign: 'center' }}>
-        {message}
+        {isAuthError
+          ? 'Sign in to your NextStep account to view your dashboard.'
+          : message}
       </Text>
       <Button label="Try Again" onPress={onRetry} />
     </View>
   )
+}
+
+function SyncBanner({ syncStatus }: { syncStatus: SyncStatus | null }): React.JSX.Element | null {
+  if (!syncStatus || syncStatus.status === 'complete' || syncStatus.status === 'idle') return null
+  if (syncStatus.status === 'syncing') {
+    return (
+      <View style={styles.syncBanner}>
+        <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+        <Text variant="caption" color={colors.primary}>Syncing your grades…</Text>
+      </View>
+    )
+  }
+  if (syncStatus.status === 'error') {
+    return (
+      <View style={[styles.syncBanner, { backgroundColor: colors.error + '18', borderColor: colors.error + '44' }]}>
+        <Text variant="caption" color={colors.error}>
+          Grade sync failed: {syncStatus.errorMessage ?? 'Unknown error'}
+        </Text>
+      </View>
+    )
+  }
+  return null
 }
 
 export default function DashboardScreen(): React.JSX.Element {
@@ -88,6 +115,42 @@ export default function DashboardScreen(): React.JSX.Element {
   const [data, setData] = useState<StudentData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
+  const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopSyncPoll = useCallback((): void => {
+    if (syncPollRef.current !== null) {
+      clearInterval(syncPollRef.current)
+      syncPollRef.current = null
+    }
+  }, [])
+
+  const checkSyncStatus = useCallback(async (): Promise<void> => {
+    try {
+      const s = await getSyncStatus()
+      setSyncStatus(s)
+      // Stop polling once sync resolves
+      if (s.status === 'complete' || s.status === 'error' || s.status === 'idle') {
+        stopSyncPoll()
+        // Reload data if sync just completed
+        if (s.status === 'complete') {
+          const d = await fetchStudentData().catch(() => null)
+          if (d) setData(d)
+        }
+      }
+    } catch {
+      // Sync-status endpoint not available (e.g. no school connection) — fail silently
+      stopSyncPoll()
+    }
+  }, [stopSyncPoll])
+
+  const startSyncPoll = useCallback((): void => {
+    stopSyncPoll()
+    void checkSyncStatus()
+    syncPollRef.current = setInterval(() => { void checkSyncStatus() }, 3000)
+    // Hard stop after 5 minutes to avoid infinite polling
+    setTimeout(stopSyncPoll, 5 * 60 * 1000)
+  }, [checkSyncStatus, stopSyncPoll])
 
   const load = useCallback(async (): Promise<void> => {
     setIsLoading(true)
@@ -101,6 +164,12 @@ export default function DashboardScreen(): React.JSX.Element {
       setIsLoading(false)
     }
   }, [])
+
+  // Start sync-status polling on mount; stop on unmount
+  useEffect(() => {
+    startSyncPoll()
+    return stopSyncPoll
+  }, [startSyncPoll, stopSyncPoll])
 
   useFocusEffect(useCallback(() => { void load() }, [load]))
 
@@ -123,12 +192,15 @@ export default function DashboardScreen(): React.JSX.Element {
   const uGpa = (profile?.unweightedGpa ?? 0).toFixed(2)
   const wGpa = (profile?.weightedGpa ?? 0).toFixed(2)
 
+  const isSyncing = syncStatus?.status === 'syncing'
+
   return (
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
+      <SyncBanner syncStatus={syncStatus} />
       {/* Header */}
       <View style={styles.header}>
         <Text variant="body" color={colors.textSecondary}>Good morning,</Text>
@@ -223,7 +295,7 @@ export default function DashboardScreen(): React.JSX.Element {
         ))}
         {courses.length === 0 && (
           <Text variant="caption" style={{ textAlign: 'center', paddingVertical: 12 }}>
-            No courses found
+            {isSyncing ? 'Syncing your grades…' : 'No courses found'}
           </Text>
         )}
       </View>
@@ -259,6 +331,18 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingHorizontal: 20 },
   centerState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '18',
+    borderWidth: 1,
+    borderColor: colors.primary + '44',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+    marginBottom: 4,
+  },
   // Header
   header: { paddingTop: 24, paddingBottom: 20 },
   nameText: { fontSize: 26, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },

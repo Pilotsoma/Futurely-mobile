@@ -196,6 +196,19 @@ export async function getPortalStatus(): Promise<PortalStatus> {
   return res.data
 }
 
+export interface SyncStatus {
+  status: 'idle' | 'syncing' | 'complete' | 'error'
+  lastSyncedAt: string | null
+  errorMessage: string | null
+}
+
+export async function getSyncStatus(): Promise<SyncStatus> {
+  const res = await portalRequest<{ data: SyncStatus }>(
+    '/integrations/grades/sync-status',
+  )
+  return res.data
+}
+
 // ── Grade data ────────────────────────────────────────────────────────────────
 
 export async function getCurrentPortalGrades(): Promise<NormalizedCourse[]> {
