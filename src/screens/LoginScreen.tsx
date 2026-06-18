@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 import { useAuth } from '../context/AuthContext'
 import { colors } from '../constants/colors'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Text from '../components/ui/Text'
+import FuturelyLogo from '../components/ui/FuturelyLogo'
 
 type Mode = 'login' | 'register'
 
@@ -73,12 +74,9 @@ export default function LoginScreen(): React.JSX.Element {
 
         {/* ── Brand ── */}
         <View style={styles.brand}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.logo}
-          />
-          <Text variant="display" color={colors.primary} style={{ textAlign: 'center' }}>
-            NextStep
+          <FuturelyLogo size={80} />
+          <Text variant="display" color={colors.primary} style={{ textAlign: 'center', marginTop: 16 }}>
+            Futurely
           </Text>
           <Text variant="body" color={colors.textSecondary} style={{ textAlign: 'center', marginTop: 8 }}>
             {isRegister ? 'Create your account' : 'Your academic companion'}
@@ -193,8 +191,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 80,
     height: 80,
-    resizeMode: 'contain',
-    marginBottom: 16,
   },
   hint: {
     fontSize: 12,

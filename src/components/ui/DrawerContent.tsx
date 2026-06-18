@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { DrawerContentComponentProps } from '@react-navigation/drawer'
 import { fetchStudentData, type StudentData } from '../../api/studentApi'
 import { colors } from '../../constants/colors'
+import FuturelyLogo from './FuturelyLogo'
 
 const NAV_ITEMS = [
   { key: 'Home',        label: 'Home',         icon: 'grid-outline'     as const },
@@ -41,10 +42,9 @@ export default function DrawerContent({ navigation, state }: DrawerContentCompon
     <View style={[styles.container, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 }]}>
       {/* Logo */}
       <View style={styles.logoSection}>
-        <Image
-          source={require('../../../assets/logo.png')}
-          style={styles.logoImage}
-        />
+        <View style={{ marginBottom: 8 }}>
+          <FuturelyLogo size={44} />
+        </View>
         {(firstName !== null || gradeText !== null) && (
           <View style={styles.studentInfo}>
             {firstName !== null && (
@@ -99,9 +99,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoImage: {
-    width: 120,
-    height: 60,
-    resizeMode: 'contain',
+    width: 44,
+    height: 44,
   },
   studentInfo: {
     alignItems: 'center',

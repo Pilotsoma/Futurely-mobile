@@ -2,7 +2,6 @@ import React, { useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,6 +18,7 @@ import Text from '../components/ui/Text'
 import { colors } from '../constants/colors'
 import { useSchoolSession } from '../context/SchoolSessionContext'
 import { connectHac, connectPowerSchool } from '../api/portalApi'
+import FuturelyLogo from '../components/ui/FuturelyLogo'
 
 // ── Navigation type ───────────────────────────────────────────────────────────
 
@@ -291,11 +291,9 @@ export default function SchoolLoginScreen(): React.JSX.Element {
 
           {/* Brand */}
           <View style={styles.brand}>
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+            <View style={{ marginBottom: 16 }}>
+              <FuturelyLogo size={72} />
+            </View>
             <Text style={styles.title}>Sign in with your{'\n'}school account</Text>
             <Text style={styles.subtitle}>Select your district and enter your school login</Text>
           </View>
@@ -480,7 +478,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 72,
     height: 72,
-    marginBottom: 16,
   },
   title: {
     fontSize: 22,

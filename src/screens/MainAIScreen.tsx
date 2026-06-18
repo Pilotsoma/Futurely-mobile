@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -18,6 +17,7 @@ import type { DrawerNavigationProp } from '@react-navigation/drawer'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import Text from '../components/ui/Text'
 import { colors } from '../constants/colors'
+import FuturelyLogo from '../components/ui/FuturelyLogo'
 import { useAuth } from '../context/AuthContext'
 import { sendChatMessage } from '../api/aiApi'
 import { fetchStudentData, type StudentData } from '../api/studentApi'
@@ -187,20 +187,19 @@ export default function MainAIScreen(): React.JSX.Element {
             )}
             ListHeaderComponent={
               <View style={styles.greeting}>
-                <Image
-                  source={require('../../assets/logo.png')}
-                  style={styles.logoImage}
-                />
+                <View style={{ marginBottom: 20 }}>
+              <FuturelyLogo size={80} />
+            </View>
                 <Text variant="heading" style={styles.hello}>Hello {firstName},</Text>
                 <Text variant="h2" color={colors.textSecondary} style={styles.tagline}>
-                  What's your NextStep?
+                  What's your future?
                 </Text>
               </View>
             }
             ListFooterComponent={
               <View style={styles.aiSection}>
                 <Text variant="label" color={colors.textSecondary} style={{ marginBottom: 8 }}>
-                  NextStep AI
+                  Futurely AI
                 </Text>
                 <Text variant="body" color={colors.textSecondary} style={{ marginBottom: 12, fontWeight: '500' }}>
                   What can I help you with?
@@ -231,11 +230,11 @@ export default function MainAIScreen(): React.JSX.Element {
             style={styles.input}
             value={aiInput}
             onChangeText={setAiInput}
-            placeholder="Ask NextStep AI..."
+            placeholder="Ask Futurely AI..."
             placeholderTextColor={colors.textMuted}
             returnKeyType="send"
             onSubmitEditing={() => void handleSend()}
-            accessibilityLabel="Ask NextStep AI"
+            accessibilityLabel="Ask Futurely AI"
             editable={!isSending}
           />
           <TouchableOpacity
@@ -259,10 +258,9 @@ function MessageBubble({ message }: { message: ChatMessage }): React.JSX.Element
   return (
     <View style={[styles.bubbleWrap, isUser ? styles.bubbleWrapRight : styles.bubbleWrapLeft]}>
       {!isUser && (
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.aiBadgeImage}
-        />
+        <View style={styles.aiBadgeWrap}>
+          <FuturelyLogo size={24} />
+        </View>
       )}
       <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi]}>
         <Text style={[styles.bubbleText, { color: isUser ? colors.background : colors.textPrimary }]}>
@@ -276,10 +274,9 @@ function MessageBubble({ message }: { message: ChatMessage }): React.JSX.Element
 function TypingIndicator(): React.JSX.Element {
   return (
     <View style={[styles.bubbleWrap, styles.bubbleWrapLeft]}>
-      <Image
-        source={require('../../assets/logo.png')}
-        style={styles.aiBadgeImage}
-      />
+      <View style={styles.aiBadgeWrap}>
+        <FuturelyLogo size={24} />
+      </View>
       <View style={[styles.bubble, styles.bubbleAi, { paddingHorizontal: 16, paddingVertical: 12 }]}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
@@ -302,7 +299,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
   chatContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   greeting: { alignItems: 'center', paddingTop: 16, paddingBottom: 32 },
-  logoImage: { width: 80, height: 80, resizeMode: 'contain', marginBottom: 20 },
+  logoImage: { width: 80, height: 80, marginBottom: 20 },
   hello: { marginBottom: 6, textAlign: 'center' as const },
   tagline: { textAlign: 'center' as const, fontWeight: '400' },
   optionCard: {
@@ -338,7 +335,7 @@ const styles = StyleSheet.create({
   bubbleWrap: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 8 },
   bubbleWrapLeft: { justifyContent: 'flex-start' },
   bubbleWrapRight: { justifyContent: 'flex-end' },
-  aiBadgeImage: { width: 24, height: 24, resizeMode: 'contain', marginRight: 8, borderRadius: 12 },
+  aiBadgeWrap: { marginRight: 8 },
   bubble: {
     maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10,
   },

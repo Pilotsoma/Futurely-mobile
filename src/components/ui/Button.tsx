@@ -23,7 +23,7 @@ export default function Button({
 
   return (
     <TouchableOpacity
-      className={`rounded-xl min-h-[48px] px-4 items-center justify-center bg-[#7B61FF] ${isInert ? 'opacity-40' : ''}`}
+      className={`rounded-xl min-h-[48px] px-4 items-center justify-center bg-[#2979FF] ${isInert ? 'opacity-40' : ''}`}
       onPress={onPress}
       disabled={isInert}
       activeOpacity={0.8}

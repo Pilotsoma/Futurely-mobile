@@ -1,9 +1,10 @@
 import React from 'react'
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native'
+import { StyleSheet, TouchableOpacity, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppParamList } from '../../navigation/AppNavigator'
+import FuturelyLogo from './FuturelyLogo'
 
 export default function BranchHeader(): React.JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<AppParamList>>()
@@ -19,10 +20,7 @@ export default function BranchHeader(): React.JSX.Element {
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         activeOpacity={0.8}
       >
-        <Image
-          source={require('../../../assets/logo.png')}
-          style={styles.logo}
-        />
+        <FuturelyLogo size={40} />
       </TouchableOpacity>
     </View>
   )
@@ -39,6 +37,5 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
-    resizeMode: 'contain',
   },
 })
