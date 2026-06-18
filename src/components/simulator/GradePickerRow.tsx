@@ -34,7 +34,7 @@ function GradePill({
 }): React.JSX.Element {
   return (
     <TouchableOpacity
-      className="w-11 h-11 rounded-[8px] border border-[#30363D] items-center justify-center"
+      className="w-11 h-11 rounded-[8px] border border-[#1C1F3C] items-center justify-center"
       style={isSelected ? { backgroundColor: `${colors.primary}26`, borderColor: colors.primary } : undefined}
       onPress={onPress}
       accessibilityRole="button"
@@ -42,7 +42,7 @@ function GradePill({
       accessibilityState={{ selected: isSelected }}
       hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
     >
-      <Text className={`text-[12px] leading-4 ${isSelected ? 'font-bold text-[#00C896]' : 'font-medium text-[#8B949E]'}`}>
+      <Text className={`text-[12px] leading-4 ${isSelected ? 'font-bold text-[#7B61FF]' : 'font-medium text-[#8B8FB5]'}`}>
         {grade}
       </Text>
       <View
@@ -78,8 +78,8 @@ export default function GradePickerRow({
           {courseName}
         </Text>
         {typeLabel !== undefined && (
-          <View className="bg-[#161B22] border border-[#30363D] rounded-[4px] px-2 py-1">
-            <Text className="text-[10px] font-bold uppercase tracking-[0.5px] leading-4 text-[#8B949E]">{typeLabel}</Text>
+          <View className="bg-[#0D0E1C] border border-[#1C1F3C] rounded-[4px] px-2 py-1">
+            <Text className="text-[10px] font-bold uppercase tracking-[0.5px] leading-4 text-[#8B8FB5]">{typeLabel}</Text>
           </View>
         )}
       </View>

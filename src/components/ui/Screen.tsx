@@ -33,7 +33,7 @@ export default function Screen({
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D1117]" edges={edges}>
+    <SafeAreaView className="flex-1 bg-[#07080F]" edges={edges}>
       {inner}
     </SafeAreaView>
   )

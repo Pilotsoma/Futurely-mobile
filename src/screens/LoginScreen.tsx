@@ -77,8 +77,10 @@ export default function LoginScreen(): React.JSX.Element {
             source={require('../../assets/logo.png')}
             style={styles.logo}
           />
-          <Text style={styles.title}>NextStep</Text>
-          <Text style={styles.subtitle}>
+          <Text variant="display" color={colors.primary} style={{ textAlign: 'center' }}>
+            NextStep
+          </Text>
+          <Text variant="body" color={colors.textSecondary} style={{ textAlign: 'center', marginTop: 8 }}>
             {isRegister ? 'Create your account' : 'Your academic companion'}
           </Text>
         </View>
@@ -193,18 +195,6 @@ const styles = StyleSheet.create({
     height: 80,
     resizeMode: 'contain',
     marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.primary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
   },
   hint: {
     fontSize: 12,

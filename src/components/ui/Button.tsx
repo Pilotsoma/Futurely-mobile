@@ -23,7 +23,7 @@ export default function Button({
 
   return (
     <TouchableOpacity
-      className={`rounded-xl min-h-[48px] px-4 items-center justify-center bg-[#00C896] ${isInert ? 'opacity-40' : ''}`}
+      className={`rounded-xl min-h-[48px] px-4 items-center justify-center bg-[#7B61FF] ${isInert ? 'opacity-40' : ''}`}
       onPress={onPress}
       disabled={isInert}
       activeOpacity={0.8}
@@ -33,9 +33,9 @@ export default function Button({
       testID={testID}
     >
       {isLoading ? (
-        <ActivityIndicator color="#0D1117" />
+        <ActivityIndicator color="#FFFFFF" />
       ) : (
-        <Text className="text-[#0D1117] text-[16px] font-semibold">{label}</Text>
+        <Text className="text-white text-[16px] font-semibold">{label}</Text>
       )}
     </TouchableOpacity>
   )

@@ -13,7 +13,7 @@ import { colors } from '../constants/colors'
 import { fetchStudentData, type CourseWithGrade, type StudentData } from '../api/studentApi'
 
 const GRADE_COLORS: Record<string, string> = {
-  A: '#3FB950', B: '#00C896', C: '#D29922', D: '#F0883E', F: '#F85149',
+  A: '#34D399', B: '#38BDF8', C: '#FBBF24', D: '#FB923C', F: '#F87171',
 }
 
 function gradeColor(letter: string): string {

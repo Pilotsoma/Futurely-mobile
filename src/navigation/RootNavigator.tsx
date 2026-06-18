@@ -30,7 +30,7 @@ function AuthNavigator(): React.JSX.Element {
 
 function SplashView(): React.JSX.Element {
   return (
-    <View className="flex-1 items-center justify-center bg-[#0D1117]">
+    <View className="flex-1 items-center justify-center bg-[#07080F]">
       <ActivityIndicator size="large" color={colors.primary} />
     </View>
   )

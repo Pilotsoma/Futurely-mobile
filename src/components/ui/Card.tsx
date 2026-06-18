@@ -14,7 +14,7 @@ export default function Card({
   testID,
   style,
 }: CardProps): React.JSX.Element {
-  const cardClassName = 'bg-[#161B22] border border-[#30363D] rounded-[12px] p-4'
+  const cardClassName = 'bg-[#0D0E1C] border border-[#1C1F3C] rounded-[12px] p-4'
 
   if (onPress !== undefined) {
     return (

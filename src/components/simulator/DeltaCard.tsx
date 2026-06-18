@@ -48,7 +48,7 @@ export default function DeltaCard({
           <Text variant="caption" color={colors.textMuted}>Weighted</Text>
         </View>
 
-        <View className="w-px self-stretch bg-[#30363D] mx-4" />
+        <View className="w-px self-stretch bg-[#1C1F3C] mx-4" />
 
         {/* Right column — projected */}
         <View className="flex-1">

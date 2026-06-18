@@ -19,18 +19,18 @@ import type { AppParamList } from '../navigation/AppNavigator'
 type NavProp = NativeStackNavigationProp<AppParamList>
 
 const GRADE_COLORS: Record<string, string> = {
-  A: '#3FB950',
-  B: '#00C896',
-  C: '#D29922',
-  D: '#F0883E',
-  F: '#F85149',
+  A: '#34D399',
+  B: '#38BDF8',
+  C: '#FBBF24',
+  D: '#FB923C',
+  F: '#F87171',
 }
 
 function subjectColor(subject: string): string {
-  const palette = ['#00C896', '#58A6FF', '#D29922', '#F0883E', '#3FB950', '#F85149', '#BC8CFF']
+  const palette = ['#7B61FF', '#38BDF8', '#FBBF24', '#FB923C', '#34D399', '#F87171', '#A78BFA']
   let hash = 0
   for (const ch of subject) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffff
-  return palette[hash % palette.length] ?? '#8B949E'
+  return palette[hash % palette.length] ?? '#8B8FB5'
 }
 
 function gradeColor(letter: string): string {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  gradeBadgeText: { fontSize: 11, fontWeight: '700', color: colors.background },
+  gradeBadgeText: { fontSize: 11, fontWeight: '700', color: '#FFFFFF' },
   // Cards
   card: {
     backgroundColor: colors.surface,

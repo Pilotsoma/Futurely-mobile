@@ -37,20 +37,20 @@ export default function Input({
 }: InputProps): React.JSX.Element {
   const [isFocused, setIsFocused] = useState(false)
   const borderClass = error
-    ? 'border-[#F85149]'
+    ? 'border-[#F87171]'
     : isFocused
-      ? 'border-[#00C896]'
-      : 'border-[#30363D]'
+      ? 'border-[#7B61FF]'
+      : 'border-[#1C1F3C]'
 
   return (
     <View className="mb-4">
-      <Text className="text-[12px] font-semibold tracking-[0.5px] text-[#E6EDF3] mb-1.5">{label}</Text>
+      <Text className="text-[12px] font-semibold tracking-[0.5px] text-[#EDEEFF] mb-1.5">{label}</Text>
       <TextInput
-        className={`bg-[#0D1117] border rounded-2xl min-h-[48px] px-3 py-3 text-[#E6EDF3] text-[16px] ${borderClass}`}
+        className={`bg-[#07080F] border rounded-2xl min-h-[48px] px-3 py-3 text-[#EDEEFF] text-[16px] ${borderClass}`}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#8B949E"
+        placeholderTextColor="#8B8FB5"
         secureTextEntry={secureTextEntry}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
@@ -63,7 +63,7 @@ export default function Input({
         accessibilityLabel={accessibilityLabel ?? label}
         testID={testID}
       />
-      {error != null && <Text className="text-[#F85149] text-[13px] mt-1">{error}</Text>}
+      {error != null && <Text className="text-[#F87171] text-[13px] mt-1">{error}</Text>}
     </View>
   )
 }

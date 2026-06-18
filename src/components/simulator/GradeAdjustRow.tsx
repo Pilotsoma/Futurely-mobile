@@ -33,7 +33,7 @@ function GradePill({
   const cfg = getGradeBadgeConfig(grade)
   return (
     <TouchableOpacity
-      className="w-11 h-11 rounded-[8px] border border-[#30363D] items-center justify-center"
+      className="w-11 h-11 rounded-[8px] border border-[#1C1F3C] items-center justify-center"
       style={isSelected ? { backgroundColor: cfg.bg, borderColor: cfg.text } : undefined}
       onPress={onPress}
       accessibilityRole="button"
@@ -72,15 +72,15 @@ export default function GradeAdjustRow({
   return (
     <Card style={[style, isModified ? { borderColor: colors.primary } : undefined]}>
       <View className="flex-row items-stretch -mx-4 -my-4 p-4 rounded-[12px] overflow-hidden">
-        <View className={`w-1 rounded-[2px] mr-3 ${isModified ? 'bg-[#00C896]' : 'bg-transparent'}`} />
+        <View className={`w-1 rounded-[2px] mr-3 ${isModified ? 'bg-[#7B61FF]' : 'bg-transparent'}`} />
         <View className="flex-1">
           <View className="flex-row items-center gap-2 mb-1">
             <Text variant="h3" className="flex-1" numberOfLines={1}>
               {courseName}
             </Text>
             {typeLabel !== undefined && (
-              <View className="bg-[#161B22] border border-[#30363D] rounded-[4px] px-2 py-1">
-                <Text className="text-[10px] font-bold uppercase tracking-[0.5px] leading-4 text-[#8B949E]">
+              <View className="bg-[#0D0E1C] border border-[#1C1F3C] rounded-[4px] px-2 py-1">
+                <Text className="text-[10px] font-bold uppercase tracking-[0.5px] leading-4 text-[#8B8FB5]">
                   {typeLabel}
                 </Text>
               </View>

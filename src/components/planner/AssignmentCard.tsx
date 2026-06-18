@@ -71,7 +71,7 @@ export default function AssignmentCard({
 
   return (
     <View
-      className={`flex-row items-center bg-[#161b22] border border-[#30363d] rounded-[12px] mx-5 mb-2 py-3 pr-4 overflow-hidden ${completed ? 'opacity-50' : ''}`}
+      className={`flex-row items-center bg-[#0d0e1c] border border-[#1c1f3c] rounded-[12px] mx-5 mb-2 py-3 pr-4 overflow-hidden ${completed ? 'opacity-50' : ''}`}
       style={[{ borderLeftWidth, borderLeftColor }]}
       accessibilityLabel={`${subject}: ${title}, ${completed ? 'completed' : 'incomplete'}`}
     >
@@ -101,9 +101,9 @@ export default function AssignmentCard({
           {title}
         </Text>
         <View className="flex-row flex-wrap items-center gap-2">
-          <View className="bg-[#0D1117] rounded-[4px] px-2 py-0.5">
+          <View className="bg-[#07080F] rounded-[4px] px-2 py-0.5">
             <Text
-              className={`text-[11px] font-[500] uppercase tracking-[0.5px] leading-4 ${completed ? 'text-[#8B949E]' : 'text-[#8B949E]'}`}
+              className={`text-[11px] font-[500] uppercase tracking-[0.5px] leading-4 ${completed ? 'text-[#8B8FB5]' : 'text-[#8B8FB5]'}`}
               numberOfLines={1}
             >
               {subject}

@@ -47,7 +47,7 @@ export default function Skeleton({
   return (
     <Animated.View
       style={[
-        { backgroundColor: '#30363D', width, height, borderRadius: radius, opacity },
+        { backgroundColor: '#1C1F3C', width, height, borderRadius: radius, opacity },
         style,
       ]}
       accessibilityElementsHidden

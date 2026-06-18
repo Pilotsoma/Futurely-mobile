@@ -37,13 +37,13 @@ function ModeToggle({ mode, onChange }: ModeToggleProps): React.JSX.Element {
       {options.map((m) => (
         <TouchableOpacity
           key={m}
-          className={`rounded-full px-4 py-2 min-h-[44px] justify-center border ${mode === m ? 'border-[#00C896] bg-[#00C896]/10' : 'border-[#30363D] bg-transparent'}`}
+          className={`rounded-full px-4 py-2 min-h-[44px] justify-center border ${mode === m ? 'border-[#7B61FF] bg-[#7B61FF]/10' : 'border-[#1C1F3C] bg-transparent'}`}
           onPress={() => onChange(m)}
           accessibilityRole="button"
           accessibilityLabel={`Show ${m} GPA`}
           accessibilityState={{ selected: mode === m }}
         >
-          <Text className={`text-[13px] ${mode === m ? 'font-semibold text-[#00C896]' : 'font-medium text-[#8B949E]'}`}>
+          <Text className={`text-[13px] ${mode === m ? 'font-semibold text-[#7B61FF]' : 'font-medium text-[#8B8FB5]'}`}>
             {m === 'weighted' ? 'Weighted' : 'Unweighted'}
           </Text>
         </TouchableOpacity>

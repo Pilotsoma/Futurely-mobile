@@ -17,7 +17,7 @@ export default function ResetButton({
 }: ResetButtonProps): React.JSX.Element {
   return (
     <TouchableOpacity
-      className={`flex-row items-center justify-center gap-2 h-12 rounded-2xl border border-[#30363D] px-5 ${disabled ? 'opacity-40' : ''}`}
+      className={`flex-row items-center justify-center gap-2 h-12 rounded-2xl border border-[#1C1F3C] px-5 ${disabled ? 'opacity-40' : ''}`}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.7}
@@ -26,8 +26,8 @@ export default function ResetButton({
       accessibilityState={{ disabled }}
       testID={testID}
     >
-      <Text className={`text-[18px] leading-[22px] ${disabled ? 'text-[#8B949E]' : 'text-[#E6EDF3]'}`}>↺</Text>
-      <Text className={`text-[15px] font-semibold ${disabled ? 'text-[#8B949E]' : 'text-[#E6EDF3]'}`}>{label}</Text>
+      <Text className={`text-[18px] leading-[22px] ${disabled ? 'text-[#8B8FB5]' : 'text-[#EDEEFF]'}`}>↺</Text>
+      <Text className={`text-[15px] font-semibold ${disabled ? 'text-[#8B8FB5]' : 'text-[#EDEEFF]'}`}>{label}</Text>
     </TouchableOpacity>
   )
 }

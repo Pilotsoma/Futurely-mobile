@@ -9,7 +9,12 @@ const config = getDefaultConfig(__dirname)
 // resolveRequest does `originalResolver ?? context.resolveRequest` — without
 // a pre-set originalResolver it recurses infinitely. We break the cycle by
 // providing a base resolver that always calls Metro's built-in resolve().
-config.resolver.resolveRequest = (context, moduleName, platform) =>
-  resolve({ ...context, resolveRequest: null }, moduleName, platform)
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // ReactDevToolsSettingsManager only ships as .android.js/.ios.js — no web build exists
+  if (platform === 'web' && moduleName.includes('ReactDevToolsSettingsManager')) {
+    return { type: 'empty' }
+  }
+  return resolve({ ...context, resolveRequest: null }, moduleName, platform)
+}
 
 module.exports = withNativeWind(config, { input: './global.css' })
