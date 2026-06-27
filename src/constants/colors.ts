@@ -12,18 +12,18 @@ export const colors = {
   primaryDark: '#1B4DB0',
 
   // Backgrounds
-  background: '#050B18',
-  surface:    '#0D1627',
-  surface2:   '#111C35',
+  background: '#0D1829',
+  surface:    '#162235',
+  surface2:   '#1C2D47',
 
   // Borders
-  border:      '#1A2744',
-  borderHover: '#243357',
+  border:      '#273D5E',
+  borderHover: '#2F4970',
 
   // Text
   textPrimary:   '#E8EEFF',
-  textSecondary: '#7B8DB0',
-  textMuted:     '#3D4F72',
+  textSecondary: '#96AACC',
+  textMuted:     '#52698A',
 
   // Status
   success: '#10B981',
