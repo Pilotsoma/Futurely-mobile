@@ -265,7 +265,25 @@ export default function DashboardScreen(): React.JSX.Element {
       <View style={styles.statsRow}>
         <StatCard value={stats.totalCourses.toString()} label="Courses" />
         <StatCard value={stats.assignmentsDueThisWeek.toString()} label="Due Soon" />
-        <StatCard value="3" label="Day Streak 🔥" />
+      </View>
+
+      {/* Quick Access */}
+      <View style={styles.statsRow}>
+        {([
+          { label: '📊 Grades', screen: 'GradePortal' },
+          { label: '🤖 AI Chat', screen: 'MainAI' },
+          { label: '📅 Planner', screen: 'Planning' },
+          { label: '🎓 Colleges', screen: 'CollegeHelp' },
+        ] as const).map(link => (
+          <TouchableOpacity
+            key={link.screen}
+            style={styles.quickAccessCard}
+            onPress={() => navigation.navigate(link.screen)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.quickAccessLabel}>{link.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Recent Grades */}
@@ -396,6 +414,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: { fontSize: 22, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+  quickAccessCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  quickAccessLabel: { fontSize: 12, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' },
   // Grade rows
   gradeRow: {
     flexDirection: 'row',
