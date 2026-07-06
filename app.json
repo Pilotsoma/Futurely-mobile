@@ -21,7 +21,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "entryPoint": "./index.ts",
     "plugins": [
       "expo-font",
       "expo-asset"
