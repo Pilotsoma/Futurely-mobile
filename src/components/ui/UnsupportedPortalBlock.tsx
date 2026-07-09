@@ -34,6 +34,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  title: { fontSize: typography.h3.fontSize, fontWeight: typography.h3.fontWeight, color: colors.text },
+  title: { ...typography.h3, color: colors.text },
   message: { fontSize: typography.body.fontSize, color: colors.textSecondary, textAlign: 'center' },
 })

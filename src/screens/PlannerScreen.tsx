@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { SectionList, StyleSheet, Text, View } from 'react-native'
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { Feather } from '@expo/vector-icons'
 import * as assignmentsApi from '../api/assignmentsApi'
 import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
@@ -11,11 +12,24 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { Assignment } from '../types/assignments'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, fonts, radii, spacing, typography } from '../theme/tokens'
 
 type Group = 'Overdue' | 'Today' | 'Tomorrow' | 'This Week' | 'Later' | 'Completed'
 
 const GROUP_ORDER: Group[] = ['Overdue', 'Today', 'Tomorrow', 'This Week', 'Later', 'Completed']
+
+// Mirrors web's GROUP_META (app/(app)/planner/page.tsx) — only Overdue/Today get a
+// distinct urgency color, everything else reads as neutral.
+const GROUP_META: Partial<Record<Group, { color: string; bg: string }>> = {
+  Overdue: { color: colors.error, bg: 'rgba(239,68,68,0.12)' },
+  Today: { color: colors.warning, bg: 'rgba(245,158,11,0.12)' },
+}
+
+function formatDueDate(assignment: Assignment): string {
+  const date = new Date(assignment.dueDate)
+  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return assignment.dueTime ? `${dateStr} at ${assignment.dueTime}` : dateStr
+}
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -130,12 +144,15 @@ export default function PlannerScreen(): React.JSX.Element {
     }
   }
 
-  const sections = useMemo(() => {
+  const [showCompleted, setShowCompleted] = useState(false)
+
+  const { activeSections, completedItems } = useMemo(() => {
     const grouped = new Map<Group, Assignment[]>(GROUP_ORDER.map((g) => [g, []]))
     for (const assignment of assignments) grouped.get(groupFor(assignment))?.push(assignment)
-    return GROUP_ORDER.map((group) => ({ title: group, data: grouped.get(group) ?? [] })).filter(
-      (s) => s.data.length > 0,
-    )
+    const active = GROUP_ORDER.filter((g) => g !== 'Completed')
+      .map((group) => ({ title: group, data: grouped.get(group) ?? [] }))
+      .filter((s) => s.data.length > 0)
+    return { activeSections: active, completedItems: grouped.get('Completed') ?? [] }
   }, [assignments])
 
   if (loading) {
@@ -186,41 +203,106 @@ export default function PlannerScreen(): React.JSX.Element {
         </Card>
       ) : null}
 
-      {sections.length === 0 ? (
+      {activeSections.length === 0 && completedItems.length === 0 ? (
         <EmptyState icon="check-circle" title="Nothing due" message="You're all caught up." />
       ) : (
         <SectionList
-          sections={sections}
+          sections={activeSections}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.listContent}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.4}
-          renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
+          renderSectionHeader={({ section }) => {
+            const meta = GROUP_META[section.title]
+            return (
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.sectionTitle, meta && { color: meta.color }]}>{section.title}</Text>
+                <View style={[styles.countPill, meta && { backgroundColor: meta.bg }]}>
+                  <Text style={[styles.countPillText, meta && { color: meta.color }]}>{section.data.length}</Text>
+                </View>
+              </View>
+            )
+          }}
           renderItem={({ item }) => (
-            <Card style={styles.assignmentCard}>
-              <View style={styles.assignmentInfo}>
-                <Text style={[styles.assignmentTitle, item.completed && styles.completedText]}>{item.title}</Text>
-                <Text style={styles.assignmentSubject}>{item.subject || 'General'}</Text>
-              </View>
-              <View style={styles.assignmentActions}>
-                <Button
-                  label={item.completed ? 'Undo' : 'Done'}
-                  onPress={() => void handleToggleComplete(item)}
-                  variant="secondary"
-                  style={styles.actionButton}
-                />
-                <Button
-                  label="Delete"
-                  onPress={() => void handleDelete(item)}
-                  variant="destructive"
-                  style={styles.actionButton}
-                />
-              </View>
-            </Card>
+            <AssignmentRow item={item} onToggle={() => void handleToggleComplete(item)} onDelete={() => void handleDelete(item)} />
           )}
+          ListFooterComponent={
+            activeSections.length === 0 && completedItems.length > 0 ? (
+              <View style={styles.allCaughtUp}>
+                <View style={styles.allCaughtUpIcon}>
+                  <Feather name="check" size={22} color={colors.success} />
+                </View>
+                <Text style={styles.allCaughtUpTitle}>All caught up!</Text>
+                <Text style={styles.allCaughtUpSubtitle}>Every assignment is completed.</Text>
+              </View>
+            ) : completedItems.length > 0 ? (
+              <View style={styles.completedWrap}>
+                <Pressable
+                  style={styles.completedToggle}
+                  onPress={() => setShowCompleted((v) => !v)}
+                  accessibilityRole="button"
+                >
+                  <Feather
+                    name="chevron-right"
+                    size={13}
+                    color={colors.textSecondary}
+                    style={showCompleted ? styles.chevronOpen : undefined}
+                  />
+                  <Text style={styles.completedToggleText}>
+                    {showCompleted ? 'Hide completed assignments' : `Show completed assignments (${completedItems.length})`}
+                  </Text>
+                </Pressable>
+                {showCompleted
+                  ? completedItems.map((item) => (
+                      <AssignmentRow
+                        key={item.id}
+                        item={item}
+                        onToggle={() => void handleToggleComplete(item)}
+                        onDelete={() => void handleDelete(item)}
+                      />
+                    ))
+                  : null}
+              </View>
+            ) : null
+          }
         />
       )}
     </Screen>
+  )
+}
+
+interface AssignmentRowProps {
+  item: Assignment
+  onToggle: () => void
+  onDelete: () => void
+}
+
+function AssignmentRow({ item, onToggle, onDelete }: AssignmentRowProps): React.JSX.Element {
+  return (
+    <Card style={[styles.assignmentCard, item.completed && styles.assignmentCardCompleted]}>
+      <Pressable
+        style={styles.assignmentMain}
+        onPress={onToggle}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.completed }}
+      >
+        <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
+          {item.completed ? <Feather name="check" size={11} color={colors.bg} /> : null}
+        </View>
+        <View style={styles.assignmentInfo}>
+          <Text style={[styles.assignmentTitle, item.completed && styles.completedText]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          <View style={styles.assignmentMetaRow}>
+            {item.subject ? <Text style={styles.assignmentSubject}>{item.subject}</Text> : null}
+            <Text style={styles.assignmentSubject}>Due {formatDueDate(item)}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <Pressable onPress={onDelete} hitSlop={8} style={styles.deleteButton} accessibilityLabel="Delete task">
+        <Feather name="x" size={16} color={colors.textMuted} />
+      </Pressable>
+    </Card>
   )
 }
 
@@ -234,18 +316,77 @@ const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.text },
   createCard: { gap: spacing.sm, marginBottom: spacing.md },
   error: { ...typography.caption, color: colors.error },
-  listContent: { gap: spacing.sm, paddingBottom: spacing.xl },
-  sectionTitle: { ...typography.label, color: colors.textSecondary, marginTop: spacing.md, marginBottom: spacing.sm },
-  assignmentCard: {
+  listContent: { paddingBottom: spacing.xl },
+  sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
-  assignmentInfo: { flex: 1, gap: spacing.xs, marginRight: spacing.sm },
-  assignmentTitle: { ...typography.h3, color: colors.text },
+  sectionTitle: { ...typography.label, color: colors.textSecondary },
+  countPill: {
+    backgroundColor: colors.surface2,
+    borderRadius: 100,
+    paddingHorizontal: spacing.sm,
+    minWidth: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countPillText: { ...typography.caption, fontSize: 11, fontFamily: fonts.bold, fontWeight: '700', color: colors.textSecondary },
+  assignmentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    padding: spacing.ms,
+  },
+  assignmentCardCompleted: { opacity: 0.6 },
+  assignmentMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.ms },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: radii.xs / 2,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  assignmentInfo: { flex: 1, gap: 3, marginRight: spacing.sm },
+  assignmentTitle: { ...typography.h3, fontSize: 14.5, color: colors.text },
   completedText: { textDecorationLine: 'line-through', color: colors.textMuted },
+  assignmentMetaRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   assignmentSubject: { ...typography.caption, color: colors.textSecondary },
-  assignmentActions: { flexDirection: 'row', gap: spacing.xs },
-  actionButton: { paddingHorizontal: spacing.sm, height: 36 },
+  deleteButton: { padding: spacing.xs },
+  completedWrap: { marginTop: spacing.xs },
+  completedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.ms,
+    marginBottom: spacing.sm,
+  },
+  chevronOpen: { transform: [{ rotate: '90deg' }] },
+  completedToggleText: { ...typography.caption, fontFamily: fonts.semiBold, fontWeight: '600', color: colors.textSecondary },
+  allCaughtUp: { alignItems: 'center', paddingVertical: spacing.xxl },
+  allCaughtUpIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.ms,
+  },
+  allCaughtUpTitle: { ...typography.h3, color: colors.text, marginBottom: spacing.xs },
+  allCaughtUpSubtitle: { ...typography.caption, color: colors.textSecondary },
 })

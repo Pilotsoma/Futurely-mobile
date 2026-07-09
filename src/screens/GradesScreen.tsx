@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { Feather } from '@expo/vector-icons'
 import * as gradesApi from '../api/gradesApi'
 import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
@@ -15,15 +16,26 @@ import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
 
 type Nav = NativeStackNavigationProp<GradesStackParamList>
 
-const NAV_CARDS: Array<{ label: string; route: keyof GradesStackParamList }> = [
-  { label: 'Classwork', route: 'Classwork' },
-  { label: 'Report Card', route: 'ReportCard' },
-  { label: 'Schedule', route: 'Schedule' },
-  { label: 'What-If Calculator', route: 'GpaSimulator' },
-  { label: 'Contact Teachers', route: 'ContactTeachers' },
-  { label: 'Progress Report', route: 'ProgressReport' },
-  { label: 'Transcript', route: 'Transcript' },
-  { label: 'Attendance', route: 'Attendance' },
+interface NavCard {
+  label: string
+  route: keyof GradesStackParamList
+  icon: React.ComponentProps<typeof Feather>['name']
+  color: string
+  iconBg: string
+}
+
+// Color choices mirror web's grades hub (app/(app)/grades/page.tsx); Feather glyphs
+// stand in for web's emoji icons — Android's color-emoji set bakes its own background
+// into each glyph, which clashes with a tinted tile (see DashboardScreen quick access).
+const NAV_CARDS: NavCard[] = [
+  { label: 'Classwork', route: 'Classwork', icon: 'bar-chart-2', color: '#10B981', iconBg: 'rgba(16,185,129,0.14)' },
+  { label: 'Report Card', route: 'ReportCard', icon: 'clipboard', color: '#3B82F6', iconBg: 'rgba(59,130,246,0.16)' },
+  { label: 'Schedule', route: 'Schedule', icon: 'clock', color: '#F59E0B', iconBg: 'rgba(245,158,11,0.14)' },
+  { label: 'What-If Calculator', route: 'GpaSimulator', icon: 'percent', color: colors.primary, iconBg: colors.primaryDim },
+  { label: 'Contact Teachers', route: 'ContactTeachers', icon: 'mail', color: '#F97316', iconBg: 'rgba(249,115,22,0.14)' },
+  { label: 'Progress Report', route: 'ProgressReport', icon: 'trending-up', color: '#A78BFA', iconBg: 'rgba(167,139,250,0.14)' },
+  { label: 'Transcript', route: 'Transcript', icon: 'file-text', color: '#6366F1', iconBg: 'rgba(99,102,241,0.14)' },
+  { label: 'Attendance', route: 'Attendance', icon: 'calendar', color: '#EF4444', iconBg: 'rgba(239,68,68,0.14)' },
 ]
 
 export default function GradesScreen(): React.JSX.Element {
@@ -93,6 +105,9 @@ export default function GradesScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel={item.label}
             >
+              <View style={[styles.navCardIcon, { backgroundColor: item.iconBg }]}>
+                <Feather name={item.icon} size={18} color={item.color} />
+              </View>
               <Text style={styles.navCardLabel}>{item.label}</Text>
             </Pressable>
           ))}
@@ -126,17 +141,27 @@ const styles = StyleSheet.create({
   navGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   navCard: {
     width: '47%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
     padding: spacing.md,
     minHeight: 56,
-    justifyContent: 'center',
     ...elevation.sm,
   },
   navCardPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  navCardLabel: { ...typography.h3, color: colors.text },
+  navCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  navCardLabel: { ...typography.h3, fontSize: 13.5, color: colors.text, flexShrink: 1 },
   sectionTitle: { ...typography.h2, color: colors.text, marginTop: spacing.sm },
   courseCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   courseInfo: { flex: 1, gap: spacing.xs, marginRight: spacing.sm },

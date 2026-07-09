@@ -4,31 +4,41 @@
 
 import { Platform, type ViewStyle } from 'react-native'
 
+// Palette + gradients below match exact computed-style values extracted live from
+// the Figma prototype (https://cute-near-11852013.figma.site) via OKLCH->sRGB
+// conversion — not estimated from screenshots. See melodic-wobbling-pillow.md plan.
 export const colors = {
-  primary: '#2979FF',
-  primaryDark: '#1B4DB0',
-  primaryDim: 'rgba(41, 121, 255, 0.16)',
-  primaryGlow: 'rgba(41, 121, 255, 0.4)',
-  bg: '#0D1829',
-  surface: '#162235',
-  surface2: '#1C2D47',
-  border: '#273D5E',
-  borderHover: '#2F4970',
-  text: '#E8EEFF',
-  textSecondary: '#96AACC',
-  textMuted: '#52698A',
-  success: '#10B981',
+  primary: '#7F22FE',
+  primaryDark: '#5B0EBF',
+  primaryDim: 'rgba(127, 34, 254, 0.16)',
+  primaryGlow: 'rgba(127, 34, 254, 0.4)',
+  bg: '#07080F',
+  surface: '#0D0E1A',
+  surface2: '#13141F',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderHover: 'rgba(255, 255, 255, 0.14)',
+  text: '#F0F1FF',
+  textSecondary: '#9497AE',
+  textMuted: '#565873',
+  success: '#00D492',
   warning: '#F59E0B',
-  error: '#EF4444',
+  error: '#FF6467',
   orange: '#F97316',
   info: '#00E5FF',
   purple: '#7C3AED',
-  buttonSecondaryBorder: '#1A2744',
+  buttonSecondaryBorder: 'rgba(255, 255, 255, 0.1)',
+} as const
+
+// Diagonal fills used by hero/gradient cards and quick-action icon tiles —
+// pass to react-native-svg's <LinearGradient> (no expo-linear-gradient dependency).
+export const gradients = {
+  hero: ['#7008E7', '#312C85'] as const,
+  accent: ['#7F22FE', '#4F39F6'] as const,
 } as const
 
 export const gradeColors = {
   A: colors.success,
-  B: colors.primary,
+  B: '#4F8CFF',
   C: colors.warning,
   D: colors.orange,
   F: colors.error,
@@ -80,15 +90,26 @@ export const elevation = {
   md: makeShadow(0.34, 12, 6, 3),
 } as const
 
+// Font family names match the keys @expo-google-fonts/inter registers via useFonts
+// (see App.tsx) — mirrors web's Inter typeface (app/globals.css / next/font) so the
+// app no longer inherits whatever font-style setting the device happens to have.
+export const fonts = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+} as const
+
 export const typography = {
-  display: { fontSize: 32, fontWeight: '700' as const },
-  h1: { fontSize: 24, fontWeight: '700' as const },
-  h2: { fontSize: 20, fontWeight: '600' as const },
-  h3: { fontSize: 16, fontWeight: '600' as const },
-  body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 15 * 1.6 },
-  caption: { fontSize: 12, fontWeight: '400' as const },
+  display: { fontSize: 32, fontFamily: fonts.bold, fontWeight: '700' as const },
+  h1: { fontSize: 24, fontFamily: fonts.bold, fontWeight: '700' as const },
+  h2: { fontSize: 20, fontFamily: fonts.semiBold, fontWeight: '600' as const },
+  h3: { fontSize: 16, fontFamily: fonts.semiBold, fontWeight: '600' as const },
+  body: { fontSize: 15, fontFamily: fonts.regular, fontWeight: '400' as const, lineHeight: 15 * 1.6 },
+  caption: { fontSize: 12, fontFamily: fonts.regular, fontWeight: '400' as const },
   label: {
     fontSize: 12,
+    fontFamily: fonts.medium,
     fontWeight: '500' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.6,

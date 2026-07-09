@@ -218,6 +218,7 @@ export default function StudyFeedScreen(): React.JSX.Element {
 
   return (
     <Screen>
+      <Text style={styles.title}>Study Feed</Text>
       <View style={styles.tabRow}>
         <Button label="All" variant={tab === 'all' ? 'primary' : 'secondary'} onPress={() => setTab('all')} style={styles.tabButton} />
         <Button
@@ -335,6 +336,7 @@ export default function StudyFeedScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  title: { ...typography.h1, color: colors.text, marginBottom: spacing.md },
   tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   tabButton: { flex: 1 },
   searchResults: { gap: spacing.xs, marginTop: spacing.sm },

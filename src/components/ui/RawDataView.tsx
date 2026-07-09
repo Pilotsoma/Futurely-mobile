@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, spacing, typography } from '../../theme/tokens'
+import { colors, fonts, spacing, typography } from '../../theme/tokens'
 
 // Several grades endpoints (attendance/schedule/report-card/progress-report/
 // contact-teachers) return upstream-scraped, loosely-typed payloads — the
@@ -70,6 +70,6 @@ const styles = StyleSheet.create({
   arrayItem: { borderLeftWidth: 1, borderLeftColor: colors.border, paddingLeft: spacing.sm },
   label: { ...typography.label, color: colors.textSecondary },
   value: { ...typography.body, color: colors.text },
-  numericValue: { color: colors.primary, fontWeight: '600' },
+  numericValue: { color: colors.primary, fontFamily: fonts.semiBold, fontWeight: '600' },
   empty: { ...typography.body, color: colors.textMuted },
 })

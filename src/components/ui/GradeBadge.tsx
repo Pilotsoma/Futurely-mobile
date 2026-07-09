@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { colors, gradeColors, radii } from '../../theme/tokens'
+import { colors, fonts, gradeColors } from '../../theme/tokens'
 
 type Letter = keyof typeof gradeColors
 
@@ -21,7 +21,13 @@ export function GradeBadge({ letter, size = 'sm' }: GradeBadgeProps): React.JSX.
     <View
       style={[
         styles.badge,
-        { width: dimension, height: dimension, borderColor: color, backgroundColor: `${color}22` },
+        {
+          width: dimension,
+          height: dimension,
+          borderRadius: dimension / 2,
+          borderColor: color,
+          backgroundColor: `${color}22`,
+        },
       ]}
       accessibilityLabel={letter ? `Grade ${letter}` : 'No grade available'}
     >
@@ -32,10 +38,9 @@ export function GradeBadge({ letter, size = 'sm' }: GradeBadgeProps): React.JSX.
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: radii.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: { fontWeight: '700' },
+  text: { fontFamily: fonts.bold, fontWeight: '700' },
 })

@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import { colors } from '../../theme/tokens'
+import { colors, fonts } from '../../theme/tokens'
 
 interface FuturelyLogoProps {
   size?: number
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
   },
   glyph: {
     color: '#FFFFFF',
+    fontFamily: fonts.bold,
     fontWeight: '700',
   },
 })

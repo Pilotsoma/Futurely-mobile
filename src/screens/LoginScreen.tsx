@@ -170,7 +170,9 @@ export default function LoginScreen(): React.JSX.Element {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <FuturelyLogo size={80} />
+          <View style={styles.logoGlow}>
+            <FuturelyLogo size={80} />
+          </View>
           <Text style={styles.title}>Futurely</Text>
           <Text style={styles.subtitle}>Your AI-powered academic companion</Text>
         </View>
@@ -346,6 +348,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.screenPadding, gap: spacing.xl },
   header: { alignItems: 'center', gap: spacing.ms },
+  logoGlow: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: colors.primaryDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: { fontSize: typography.h1.fontSize, fontWeight: typography.h1.fontWeight, color: colors.text },
   subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary },
   authCard: { borderRadius: radii.xl, padding: spacing.xl },

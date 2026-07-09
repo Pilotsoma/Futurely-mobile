@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import * as gradesApi from '../api/gradesApi'
 import { ApiRequestError } from '../api/client'
@@ -88,18 +89,22 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
         style={styles.signOutButton}
       />
 
-      <View style={styles.tabRow}>
-        <Button
-          label="HAC"
+      <View style={styles.portalChoiceRow}>
+        <PortalChoiceCard
+          label="Home Access Center"
+          subtitle="Used by most Texas districts"
+          iconColor="#4F8CFF"
+          iconBg="rgba(79,140,255,0.16)"
+          selected={portalType === 'HAC'}
           onPress={() => setPortalType('HAC')}
-          variant={portalType === 'HAC' ? 'primary' : 'secondary'}
-          style={styles.tabButton}
         />
-        <Button
+        <PortalChoiceCard
           label="PowerSchool"
+          subtitle="Widely used across the US"
+          iconColor="#F97316"
+          iconBg="rgba(249,115,22,0.16)"
+          selected={portalType === 'PowerSchool'}
           onPress={() => setPortalType('PowerSchool')}
-          variant={portalType === 'PowerSchool' ? 'primary' : 'secondary'}
-          style={styles.tabButton}
         />
       </View>
 
@@ -161,10 +166,52 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
         <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
       </Card>
 
+      <View style={styles.securityNote}>
+        <Feather name="shield" size={14} color={colors.success} />
+        <Text style={styles.securityNoteText}>
+          Your school login is sent directly to your portal to connect your account — it is not shared anywhere
+          else.
+        </Text>
+      </View>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Button label="Connect" onPress={() => void handleSubmit()} loading={submitting} />
+      <Button label="Connect securely" onPress={() => void handleSubmit()} loading={submitting} />
     </Screen>
+  )
+}
+
+function PortalChoiceCard({
+  label,
+  subtitle,
+  iconColor,
+  iconBg,
+  selected,
+  onPress,
+}: {
+  label: string
+  subtitle: string
+  iconColor: string
+  iconBg: string
+  selected: boolean
+  onPress: () => void
+}): React.JSX.Element {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.portalCard, selected && styles.portalCardSelected]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
+    >
+      <View style={[styles.portalIcon, { backgroundColor: iconBg }]}>
+        <Feather name="globe" size={18} color={iconColor} />
+      </View>
+      <View style={styles.portalTextWrap}>
+        <Text style={styles.portalLabel}>{label}</Text>
+        <Text style={styles.portalSubtitle}>{subtitle}</Text>
+      </View>
+    </Pressable>
   )
 }
 
@@ -177,8 +224,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary, textAlign: 'center' },
-  tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  tabButton: { flex: 1 },
+  portalChoiceRow: { gap: spacing.sm, marginBottom: spacing.md },
+  portalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.ms,
+    padding: spacing.ms,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+  },
+  portalCardSelected: { borderColor: colors.primary, backgroundColor: colors.primaryDim },
+  portalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portalTextWrap: { flex: 1, gap: 2 },
+  portalLabel: { ...typography.h3, fontSize: 14.5, color: colors.text },
+  portalSubtitle: { ...typography.caption, color: colors.textSecondary },
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: 'rgba(0, 212, 146, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 212, 146, 0.25)',
+    borderRadius: radii.md,
+    padding: spacing.ms,
+    marginBottom: spacing.md,
+  },
+  securityNoteText: { ...typography.caption, color: colors.success, flex: 1, lineHeight: 17 },
   form: { gap: spacing.sm, marginBottom: spacing.md },
   list: { maxHeight: 220, marginBottom: spacing.sm },
   districtRow: {

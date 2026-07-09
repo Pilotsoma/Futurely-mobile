@@ -9,7 +9,7 @@ import ProgressReportScreen from '../screens/grades/ProgressReportScreen'
 import ReportCardScreen from '../screens/grades/ReportCardScreen'
 import ScheduleScreen from '../screens/grades/ScheduleScreen'
 import TranscriptScreen from '../screens/grades/TranscriptScreen'
-import { colors } from '../theme/tokens'
+import { colors, fonts } from '../theme/tokens'
 
 export type GradesStackParamList = {
   GradesHub: undefined
@@ -31,7 +31,7 @@ export default function GradesNavigator(): React.JSX.Element {
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontFamily: fonts.semiBold, fontWeight: '600' },
         headerShadowVisible: false,
       }}
     >
