@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radii.sm,
     paddingHorizontal: spacing.md,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface2,
     color: colors.text,
     fontSize: typography.body.fontSize,
   },

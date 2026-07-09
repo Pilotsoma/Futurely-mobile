@@ -1,7 +1,14 @@
-import React from 'react'
-import { View, StyleSheet, ViewStyle } from 'react-native'
+import React, { useEffect } from 'react'
+import { StyleSheet, ViewStyle } from 'react-native'
 import { Edge, SafeAreaView } from 'react-native-safe-area-context'
-import { colors, spacing } from '../../theme/tokens'
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
+import { animation, colors, spacing } from '../../theme/tokens'
 
 interface ScreenProps {
   children: React.ReactNode
@@ -17,9 +24,29 @@ export function Screen({
   edges = ['left', 'right', 'bottom'],
   style,
 }: ScreenProps): React.JSX.Element {
+  const reduceMotion = useReducedMotion()
+  const progress = useSharedValue(reduceMotion ? 1 : 0)
+
+  useEffect(() => {
+    if (reduceMotion) {
+      progress.value = 1
+      return
+    }
+    // One-shot mount entrance, mirroring web's `.fade-up` page-entrance animation.
+    progress.value = withTiming(1, { duration: animation.durSlow, easing: Easing.out(Easing.cubic) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * 12 }],
+  }))
+
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
-      <View style={[styles.container, padded && styles.padded, style]}>{children}</View>
+      <Animated.View style={[styles.container, padded && styles.padded, animatedStyle, style]}>
+        {children}
+      </Animated.View>
     </SafeAreaView>
   )
 }

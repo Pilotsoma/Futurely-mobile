@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, StyleSheet, ViewStyle } from 'react-native'
-import { colors, radii, spacing } from '../../theme/tokens'
+import { colors, elevation, radii, spacing } from '../../theme/tokens'
 
 interface CardProps {
   children: React.ReactNode
@@ -18,5 +18,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.md,
     padding: spacing.cardPadding,
+    ...elevation.sm,
   },
 })
