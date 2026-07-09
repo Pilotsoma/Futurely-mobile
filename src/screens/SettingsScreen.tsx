@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
-import { ScrollView, StyleSheet, Text } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import * as studentsApi from '../api/studentsApi'
 import * as gradesApi from '../api/gradesApi'
@@ -13,7 +14,26 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { PortalStatus } from '../types/grades'
 import type { StudentMe } from '../types/student'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, radii, spacing, typography } from '../theme/tokens'
+
+function SectionHeader({
+  icon,
+  label,
+  tint = colors.primary,
+}: {
+  icon: React.ComponentProps<typeof Feather>['name']
+  label: string
+  tint?: string
+}): React.JSX.Element {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={[styles.sectionIcon, { backgroundColor: `${tint}22` }]}>
+        <Feather name={icon} size={15} color={tint} />
+      </View>
+      <Text style={styles.cardTitle}>{label}</Text>
+    </View>
+  )
+}
 
 export default function SettingsScreen(): React.JSX.Element {
   const { user, signOut, deleteAccount } = useAuth()
@@ -127,7 +147,7 @@ export default function SettingsScreen(): React.JSX.Element {
         <Text style={styles.email}>{user?.email}</Text>
 
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>College Profile</Text>
+          <SectionHeader icon="award" label="College Profile" />
           <Input label="SAT Score" value={satScore} onChangeText={setSatScore} keyboardType="number-pad" />
           <Input label="ACT Score" value={actScore} onChangeText={setActScore} keyboardType="number-pad" />
           <Input label="College Goal" value={futureDecision} onChangeText={setFutureDecision} />
@@ -136,7 +156,7 @@ export default function SettingsScreen(): React.JSX.Element {
         </Card>
 
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>School Portal</Text>
+          <SectionHeader icon="link" label="School Portal" />
           <Text style={styles.portalStatus}>
             {portalStatus?.connected ? `Connected · ${portalStatus.systemType ?? ''}` : 'Not connected'}
           </Text>
@@ -157,7 +177,7 @@ export default function SettingsScreen(): React.JSX.Element {
         </Card>
 
         <Card style={styles.dangerCard}>
-          <Text style={styles.cardTitle}>Danger Zone</Text>
+          <SectionHeader icon="alert-triangle" label="Danger Zone" tint={colors.error} />
           {!showDeleteConfirm ? (
             <Button label="Delete account" onPress={() => setShowDeleteConfirm(true)} variant="destructive" />
           ) : (
@@ -192,6 +212,14 @@ const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.text },
   email: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.sm },
   card: { gap: spacing.sm },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  sectionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardTitle: { ...typography.h3, color: colors.text },
   portalStatus: { ...typography.body, color: colors.textSecondary },
   success: { ...typography.caption, color: colors.success },
