@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
-import { FlatList, StyleSheet, Text, View } from 'react-native'
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { Feather } from '@expo/vector-icons'
 import * as feedApi from '../api/feedApi'
 import { ApiRequestError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -11,7 +12,7 @@ import { Input } from '../components/ui/Input'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { FeedComment, FeedPost, FeedUserProfile, FeedUserSummary } from '../types/feed'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, fonts, spacing, typography } from '../theme/tokens'
 
 type Tab = 'all' | 'following'
 
@@ -275,60 +276,71 @@ export default function StudyFeedScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => (
-            <Card style={styles.postCard}>
-              <View style={styles.postHeaderRow}>
-                <Button
-                  label={item.user.name ?? item.user.hacName ?? 'Student'}
-                  variant="secondary"
-                  onPress={() => void handleShowProfile(item.userId)}
-                  style={styles.authorButton}
-                />
-                {user?.id === item.userId ? (
-                  <Button
-                    label="Delete"
-                    variant="destructive"
-                    onPress={() => void handleDeletePost(item)}
-                    style={styles.actionButton}
-                  />
-                ) : null}
-              </View>
-              <Text style={styles.postBody}>{item.body}</Text>
-              <View style={styles.postActions}>
-                <Button
-                  label={`${item.likedByMe ? '♥' : '♡'} ${item._count.likes}`}
-                  variant="secondary"
-                  onPress={() => void handleToggleLike(item)}
-                  style={styles.actionButton}
-                />
-                <Button
-                  label={`💬 ${item._count.comments}`}
-                  variant="secondary"
-                  onPress={() => void handleExpandComments(item)}
-                  style={styles.actionButton}
-                />
-              </View>
-
-              {expandedPostId === item.id ? (
-                <View style={styles.commentsSection}>
-                  {comments.map((c) => (
-                    <View key={c.id} style={styles.commentRow}>
-                      <Text style={styles.commentAuthor}>{c.user.name ?? 'Student'}</Text>
-                      <Text style={styles.commentBody}>{c.body}</Text>
-                      <Button
-                        label={`${c.likedByMe ? '♥' : '♡'} ${c._count?.likes ?? 0}`}
-                        variant="secondary"
-                        onPress={() => void handleToggleCommentLike(item.id, c)}
-                        style={styles.commentLikeButton}
-                      />
+          renderItem={({ item }) => {
+            const authorName = item.user.name ?? item.user.hacName ?? 'Student'
+            return (
+              <Card style={styles.postCard}>
+                <View style={styles.postHeaderRow}>
+                  <Pressable
+                    style={styles.authorRow}
+                    onPress={() => void handleShowProfile(item.userId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={authorName}
+                  >
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{authorName.charAt(0).toUpperCase()}</Text>
                     </View>
-                  ))}
-                  <Input value={commentText} onChangeText={setCommentText} placeholder="Add a comment..." />
-                  <Button label="Reply" onPress={() => void handleAddComment(item.id)} variant="secondary" />
+                    <Text style={styles.authorName}>{authorName}</Text>
+                  </Pressable>
+                  {user?.id === item.userId ? (
+                    <Pressable
+                      onPress={() => void handleDeletePost(item)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Delete post"
+                    >
+                      <Feather name="trash-2" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
                 </View>
-              ) : null}
-            </Card>
-          )}
+                <Text style={styles.postBody}>{item.body}</Text>
+                <View style={styles.postActions}>
+                  <Pressable style={styles.actionRow} onPress={() => void handleToggleLike(item)}>
+                    <Feather name="heart" size={15} color={item.likedByMe ? colors.error : colors.textMuted} />
+                    <Text style={styles.actionText}>{item._count.likes}</Text>
+                  </Pressable>
+                  <Pressable style={styles.actionRow} onPress={() => void handleExpandComments(item)}>
+                    <Feather name="message-circle" size={15} color={colors.textMuted} />
+                    <Text style={styles.actionText}>{item._count.comments}</Text>
+                  </Pressable>
+                </View>
+
+                {expandedPostId === item.id ? (
+                  <View style={styles.commentsSection}>
+                    {comments.map((c) => (
+                      <View key={c.id} style={styles.commentRow}>
+                        <Text style={styles.commentAuthor}>{c.user.name ?? 'Student'}</Text>
+                        <Text style={styles.commentBody}>{c.body}</Text>
+                        <Pressable
+                          style={styles.actionRow}
+                          onPress={() => void handleToggleCommentLike(item.id, c)}
+                        >
+                          <Feather
+                            name="heart"
+                            size={13}
+                            color={c.likedByMe ? colors.error : colors.textMuted}
+                          />
+                          <Text style={styles.actionText}>{c._count?.likes ?? 0}</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Input value={commentText} onChangeText={setCommentText} placeholder="Add a comment..." />
+                    <Button label="Reply" onPress={() => void handleAddComment(item.id)} variant="secondary" />
+                  </View>
+                ) : null}
+              </Card>
+            )
+          }}
         />
       )}
     </Screen>
@@ -348,13 +360,23 @@ const styles = StyleSheet.create({
   listContent: { gap: spacing.md, paddingBottom: spacing.xl },
   postCard: { gap: spacing.sm },
   postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  authorButton: { alignSelf: 'flex-start', height: 32, paddingHorizontal: spacing.sm },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#FFFFFF', fontFamily: fonts.bold, fontWeight: '700', fontSize: 13 },
+  authorName: { ...typography.h3, fontSize: 13.5, color: colors.text },
   postBody: { ...typography.body, color: colors.text },
-  postActions: { flexDirection: 'row', gap: spacing.sm },
-  actionButton: { height: 36, paddingHorizontal: spacing.sm },
+  postActions: { flexDirection: 'row', gap: spacing.lg },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  actionText: { ...typography.caption, color: colors.textMuted },
   commentsSection: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   commentRow: { gap: spacing.xs },
   commentAuthor: { ...typography.label, color: colors.textSecondary },
   commentBody: { ...typography.body, color: colors.text },
-  commentLikeButton: { alignSelf: 'flex-start', height: 30, paddingHorizontal: spacing.sm },
 })
