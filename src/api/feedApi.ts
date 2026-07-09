@@ -12,11 +12,18 @@ import type {
 } from '../types/feed'
 
 export async function listPosts(params: ListFeedParams = {}): Promise<FeedPage> {
-  return api.get('/feed/posts', params)
+  const query: Record<string, string | number> = {}
+  if (params.page !== undefined) query.page = params.page
+  if (params.limit !== undefined) query.limit = params.limit
+  if (params.network) query.network = params.network
+  return api.get('/feed/posts', query)
 }
 
 export async function listFollowingPosts(params: Pick<ListFeedParams, 'page' | 'limit'> = {}): Promise<FeedPage> {
-  return api.get('/feed/posts/following', params)
+  const query: Record<string, string | number> = {}
+  if (params.page !== undefined) query.page = params.page
+  if (params.limit !== undefined) query.limit = params.limit
+  return api.get('/feed/posts/following', query)
 }
 
 export async function createPost(payload: CreatePostRequest): Promise<FeedPost> {

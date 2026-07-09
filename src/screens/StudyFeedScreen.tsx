@@ -3,12 +3,12 @@ import { FlatList, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as feedApi from '../api/feedApi'
 import { ApiRequestError } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import { Screen } from '../components/ui/Screen'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
-import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { FeedComment, FeedPost, FeedUserProfile, FeedUserSummary } from '../types/feed'
 import { colors, spacing, typography } from '../theme/tokens'
@@ -19,6 +19,7 @@ type Tab = 'all' | 'following'
 // (comments) and user profile expand inline in place, since this is a
 // secondary feature relative to the academic core — see melodic-wobbling-pillow.md.
 export default function StudyFeedScreen(): React.JSX.Element {
+  const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('all')
   const [posts, setPosts] = useState<FeedPost[]>([])
   const [page, setPage] = useState(1)
@@ -142,6 +143,39 @@ export default function StudyFeedScreen(): React.JSX.Element {
     }
   }
 
+  async function handleDeletePost(post: FeedPost): Promise<void> {
+    const previous = posts
+    setPosts((prev) => prev.filter((p) => p.id !== post.id))
+    try {
+      await feedApi.deletePost(post.id)
+    } catch (err) {
+      setPosts(previous)
+      setError(err instanceof ApiRequestError ? err.message : 'Could not delete your post.')
+    }
+  }
+
+  async function handleToggleCommentLike(postId: number, comment: FeedComment): Promise<void> {
+    const wasLiked = comment.likedByMe ?? false
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === comment.id
+          ? { ...c, likedByMe: !wasLiked, _count: { likes: (c._count?.likes ?? 0) + (wasLiked ? -1 : 1) } }
+          : c,
+      ),
+    )
+    try {
+      await feedApi.toggleCommentLike(postId, comment.id)
+    } catch {
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === comment.id
+            ? { ...c, likedByMe: wasLiked, _count: { likes: (c._count?.likes ?? 0) + (wasLiked ? 1 : -1) } }
+            : c,
+        ),
+      )
+    }
+  }
+
   async function handleSearch(query: string): Promise<void> {
     setSearchQuery(query)
     if (!query.trim()) {
@@ -242,12 +276,22 @@ export default function StudyFeedScreen(): React.JSX.Element {
           onEndReachedThreshold={0.4}
           renderItem={({ item }) => (
             <Card style={styles.postCard}>
-              <Button
-                label={item.user.name ?? item.user.hacName ?? 'Student'}
-                variant="secondary"
-                onPress={() => void handleShowProfile(item.userId)}
-                style={styles.authorButton}
-              />
+              <View style={styles.postHeaderRow}>
+                <Button
+                  label={item.user.name ?? item.user.hacName ?? 'Student'}
+                  variant="secondary"
+                  onPress={() => void handleShowProfile(item.userId)}
+                  style={styles.authorButton}
+                />
+                {user?.id === item.userId ? (
+                  <Button
+                    label="Delete"
+                    variant="destructive"
+                    onPress={() => void handleDeletePost(item)}
+                    style={styles.actionButton}
+                  />
+                ) : null}
+              </View>
               <Text style={styles.postBody}>{item.body}</Text>
               <View style={styles.postActions}>
                 <Button
@@ -270,13 +314,15 @@ export default function StudyFeedScreen(): React.JSX.Element {
                     <View key={c.id} style={styles.commentRow}>
                       <Text style={styles.commentAuthor}>{c.user.name ?? 'Student'}</Text>
                       <Text style={styles.commentBody}>{c.body}</Text>
+                      <Button
+                        label={`${c.likedByMe ? '♥' : '♡'} ${c._count?.likes ?? 0}`}
+                        variant="secondary"
+                        onPress={() => void handleToggleCommentLike(item.id, c)}
+                        style={styles.commentLikeButton}
+                      />
                     </View>
                   ))}
-                  <Input
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    placeholder="Add a comment..."
-                  />
+                  <Input value={commentText} onChangeText={setCommentText} placeholder="Add a comment..." />
                   <Button label="Reply" onPress={() => void handleAddComment(item.id)} variant="secondary" />
                 </View>
               ) : null}
@@ -299,6 +345,7 @@ const styles = StyleSheet.create({
   error: { ...typography.caption, color: colors.error, marginBottom: spacing.sm },
   listContent: { gap: spacing.md, paddingBottom: spacing.xl },
   postCard: { gap: spacing.sm },
+  postHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   authorButton: { alignSelf: 'flex-start', height: 32, paddingHorizontal: spacing.sm },
   postBody: { ...typography.body, color: colors.text },
   postActions: { flexDirection: 'row', gap: spacing.sm },
@@ -307,4 +354,5 @@ const styles = StyleSheet.create({
   commentRow: { gap: spacing.xs },
   commentAuthor: { ...typography.label, color: colors.textSecondary },
   commentBody: { ...typography.body, color: colors.text },
+  commentLikeButton: { alignSelf: 'flex-start', height: 30, paddingHorizontal: spacing.sm },
 })
