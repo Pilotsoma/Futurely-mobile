@@ -12,6 +12,7 @@ import type { DailyCoinsResult } from '../api/marketplaceApi'
 import { Screen } from '../components/ui/Screen'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { IconTile } from '../components/ui/IconTile'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import { useCountUp, useCountUpFloat } from '../hooks/useCountUp'
@@ -26,20 +27,18 @@ type Nav = BottomTabNavigationProp<MainTabParamList>
 interface QuickLink {
   label: string
   icon: React.ComponentProps<typeof Feather>['name']
-  color: string
-  iconBg: string
+  gradient: readonly [string, string]
   route: keyof MainTabParamList
 }
 
-// Same 4 destinations + tint colors as web's QUICK_LINKS (app/(app)/dashboard/page.tsx),
-// using Feather glyphs instead of color emoji — Android's emoji set renders each
-// emoji with its own baked-in background/shape, which clashes with a tinted tile.
-// Icon names match MainNavigator's tab bar icons for consistency across the app.
+// Same 4 destinations as web's QUICK_LINKS (app/(app)/dashboard/page.tsx), rendered
+// as gradient IconTiles matching the Figma prototype's "Quick Actions" row. Icon
+// names match MainNavigator's tab bar icons for consistency across the app.
 const QUICK_LINKS: QuickLink[] = [
-  { label: 'Grades', icon: 'bar-chart-2', color: '#10B981', iconBg: 'rgba(16,185,129,0.16)', route: 'Grades' },
-  { label: 'AI Chat', icon: 'message-circle', color: '#6366F1', iconBg: 'rgba(99,102,241,0.18)', route: 'AIChat' },
-  { label: 'Planner', icon: 'calendar', color: '#F59E0B', iconBg: 'rgba(245,158,11,0.16)', route: 'Planner' },
-  { label: 'Colleges', icon: 'bookmark', color: '#3B82F6', iconBg: 'rgba(59,130,246,0.18)', route: 'Colleges' },
+  { label: 'Grades', icon: 'bar-chart-2', gradient: ['#10B981', '#059669'], route: 'Grades' },
+  { label: 'AI Chat', icon: 'message-circle', gradient: ['#7F22FE', '#4F39F6'], route: 'AIChat' },
+  { label: 'Planner', icon: 'calendar', gradient: ['#F59E0B', '#D97706'], route: 'Planner' },
+  { label: 'Colleges', icon: 'bookmark', gradient: ['#3B82F6', '#2563EB'], route: 'Colleges' },
 ]
 
 function getTimeOfDay(): string {
@@ -172,8 +171,8 @@ export default function DashboardScreen(): React.JSX.Element {
         ) : null}
 
         <Pressable onPress={() => navigation.navigate('Grades')}>
-          <Card style={styles.gpaCard}>
-            <Text style={styles.cardLabel}>GPA</Text>
+          <Card variant="gradient" style={styles.gpaCard}>
+            <Text style={styles.gpaCardLabel}>GPA</Text>
             <View style={styles.gpaRow}>
               <View>
                 <Text style={styles.gpaValue}>{unweighted !== null ? animUnweighted.toFixed(2) : '—'}</Text>
@@ -245,18 +244,13 @@ export default function DashboardScreen(): React.JSX.Element {
           <Text style={styles.cardLabel}>Quick Access</Text>
           <View style={styles.quickAccessRow}>
             {QUICK_LINKS.map((link) => (
-              <Pressable
+              <IconTile
                 key={link.route}
-                style={({ pressed }) => [styles.quickAccessCard, pressed && styles.quickAccessCardPressed]}
+                icon={<Feather name={link.icon} size={20} color="#FFFFFF" />}
+                label={link.label}
+                gradientColors={link.gradient}
                 onPress={() => navigation.navigate(link.route)}
-                accessibilityRole="button"
-                accessibilityLabel={link.label}
-              >
-                <View style={[styles.quickAccessIcon, { backgroundColor: link.iconBg }]}>
-                  <Feather name={link.icon} size={19} color={link.color} />
-                </View>
-                <Text style={styles.quickAccessLabel}>{link.label}</Text>
-              </Pressable>
+              />
             ))}
           </View>
         </View>
@@ -292,12 +286,13 @@ const styles = StyleSheet.create({
   gapMd: { gap: spacing.md },
   gapSm: { gap: spacing.sm },
   gpaCard: { gap: spacing.md },
+  gpaCardLabel: { ...typography.label, color: 'rgba(240, 241, 255, 0.7)' },
   cardLabel: { ...typography.label, color: colors.textSecondary },
   gpaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xl },
-  gpaDivider: { width: 1, height: 40, backgroundColor: colors.border },
-  gpaValue: { ...typography.display, color: colors.primary },
-  gpaValueSecondary: { ...typography.h1, color: colors.text },
-  gpaCaption: { ...typography.caption, color: colors.textSecondary },
+  gpaDivider: { width: 1, height: 40, backgroundColor: 'rgba(255, 255, 255, 0.16)' },
+  gpaValue: { ...typography.display, color: colors.text },
+  gpaValueSecondary: { ...typography.h1, color: 'rgba(240, 241, 255, 0.85)' },
+  gpaCaption: { ...typography.caption, color: 'rgba(240, 241, 255, 0.7)' },
   dueHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   countPill: {
     backgroundColor: colors.primaryDim,
@@ -321,27 +316,6 @@ const styles = StyleSheet.create({
   statValue: { ...typography.h1, color: colors.text },
   statLabel: { ...typography.caption, color: colors.textSecondary, textAlign: 'center' },
   quickAccessWrap: { gap: spacing.sm },
-  quickAccessRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  quickAccessCard: {
-    width: '47%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    ...elevation.sm,
-  },
-  quickAccessCardPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  quickAccessIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickAccessLabel: { ...typography.h3, fontSize: 13.5, color: colors.text, flexShrink: 1 },
+  quickAccessRow: { flexDirection: 'row', gap: spacing.md },
   inlineError: { ...typography.caption, color: colors.error },
 })

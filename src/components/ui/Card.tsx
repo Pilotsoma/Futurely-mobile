@@ -22,8 +22,13 @@ export function Card({
   radius = radii.md,
 }: CardProps): React.JSX.Element {
   if (variant === 'gradient') {
+    // `style` (gap/padding/alignItems etc.) applies to the content layer, not the
+    // outer wrapper — the outer wrapper only owns the radius/border/gradient clip,
+    // controlled separately via the `radius` prop, since a single merged style
+    // can't cleanly split "visual" (goes on the gradient wrapper) from "layout"
+    // (goes on the children) concerns.
     return (
-      <View style={[styles.gradientCard, { borderRadius: radius }, style]}>
+      <View style={[styles.gradientCard, { borderRadius: radius }]}>
         <Svg style={StyleSheet.absoluteFillObject} pointerEvents="none">
           <Defs>
             <LinearGradient id="cardGradient" x1="0" y1="0" x2="1" y2="1">
@@ -33,7 +38,7 @@ export function Card({
           </Defs>
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#cardGradient)" />
         </Svg>
-        <View style={styles.gradientContent}>{children}</View>
+        <View style={[styles.gradientContent, style]}>{children}</View>
       </View>
     )
   }
