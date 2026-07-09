@@ -135,23 +135,38 @@ async function refreshTokens(): Promise<{ token: string; refreshToken: string }>
 
 const AUTH_ENDPOINTS_SKIPPING_REFRESH = new Set(['/auth/login', '/auth/register', '/auth/refresh'])
 
-export async function request<T>(path: string, opts: RequestOptions = {}, _isRetry = false): Promise<T> {
+/**
+ * Returns the full response envelope. Most endpoints only need `.data` (see
+ * `request()` below), but a few — like GET /assignments — also carry a `meta`
+ * (cursor pagination) that callers need direct access to.
+ */
+export async function requestEnvelope<T, M = undefined>(
+  path: string,
+  opts: RequestOptions = {},
+  _isRetry = false,
+): Promise<{ data: T; meta?: M }> {
   const stored = opts.skipAuth ? null : await loadTokens()
   const res = await rawFetch(path, opts, stored?.accessToken ?? null)
 
-  const body = (await res.json().catch(() => null)) as { data?: T } | { error?: unknown } | null
+  const body = (await res.json().catch(() => null)) as { data?: T; meta?: M } | { error?: unknown } | null
 
   if (res.ok) {
-    return ((body as { data?: T })?.data ?? (body as unknown as T)) as T
+    const envelope = body as { data?: T; meta?: M } | null
+    return { data: (envelope?.data ?? (body as unknown as T)) as T, meta: envelope?.meta }
   }
 
   if (res.status === 401 && !_isRetry && !opts.skipAuth && !AUTH_ENDPOINTS_SKIPPING_REFRESH.has(path)) {
     await refreshTokens() // throws SessionExpiredError if it fails
-    return request<T>(path, opts, true)
+    return requestEnvelope<T, M>(path, opts, true)
   }
 
   const { message, code } = extractError(body)
   throw new ApiRequestError(message, res.status, code, body)
+}
+
+export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const { data } = await requestEnvelope<T>(path, opts)
+  return data
 }
 
 export const api = {
