@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
 import { FuturelyLogo } from '../components/ui/FuturelyLogo'
+import { GoogleLogo } from '../components/ui/GoogleLogo'
 import { colors, radii, spacing, touchTarget, typography } from '../theme/tokens'
 
 type Mode = 'login' | 'register'
@@ -25,7 +26,7 @@ function calculateAge(dateOfBirth: string): number | null {
 }
 
 export default function LoginScreen(): React.JSX.Element {
-  const { signIn, register } = useAuth()
+  const { signIn, register, signInWithGoogle } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
 
   // Login state
@@ -33,6 +34,10 @@ export default function LoginScreen(): React.JSX.Element {
   const [loginPassword, setLoginPassword] = useState('')
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginLoading, setLoginLoading] = useState(false)
+
+  // Google sign-in state (shared across login/register — same OAuth entry point as web)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   // Register state
   const [registerStep, setRegisterStep] = useState<RegisterStep>('dob')
@@ -74,6 +79,22 @@ export default function LoginScreen(): React.JSX.Element {
       }
     } finally {
       setLoginLoading(false)
+    }
+  }
+
+  async function handleGoogleSignIn(): Promise<void> {
+    setGoogleError(null)
+    setGoogleLoading(true)
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      if (err instanceof ApiRequestError && err.code === 'OAUTH_CANCELLED') {
+        // User closed the browser sheet — not an error worth surfacing.
+      } else {
+        setGoogleError(err instanceof ApiRequestError ? err.message : 'Google sign-in failed. Please try again.')
+      }
+    } finally {
+      setGoogleLoading(false)
     }
   }
 
@@ -155,6 +176,24 @@ export default function LoginScreen(): React.JSX.Element {
         </View>
 
         <Card style={styles.authCard}>
+        <Pressable
+          onPress={() => void handleGoogleSignIn()}
+          disabled={googleLoading}
+          style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+        >
+          <GoogleLogo size={18} />
+          <Text style={styles.googleButtonText}>{googleLoading ? 'Opening Google…' : 'Continue with Google'}</Text>
+        </Pressable>
+        {googleError ? <Text style={styles.error}>{googleError}</Text> : null}
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or continue with email</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
         {mode === 'login' ? (
           <View style={styles.form}>
             <Input
@@ -310,6 +349,23 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.h1.fontSize, fontWeight: typography.h1.fontWeight, color: colors.text },
   subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary },
   authCard: { borderRadius: radii.xl, padding: spacing.xl },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    height: 48,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface2,
+    minHeight: touchTarget,
+  },
+  googleButtonPressed: { opacity: 0.85 },
+  googleButtonText: { ...typography.h3, color: colors.text },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { ...typography.caption, color: colors.textMuted },
   form: { gap: spacing.md },
   stepTitle: {
     fontSize: typography.h2.fontSize,

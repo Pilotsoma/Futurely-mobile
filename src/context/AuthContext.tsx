@@ -13,6 +13,7 @@ interface AuthContextValue {
   hasPortalConnection: boolean | null
   signIn: (payload: LoginRequest) => Promise<void>
   register: (payload: RegisterRequest) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   deleteAccount: (password?: string) => Promise<void>
   /** Called by ConnectSchoolScreen after a successful login+sync, to skip re-querying status. */
@@ -90,6 +91,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     [checkPortalStatus],
   )
 
+  const signInWithGoogle = useCallback(async () => {
+    await authApi.signInWithGoogle()
+    // The OAuth callback only returns tokens, not a user object (unlike login/register) — fetch it.
+    const me = await authApi.getMe()
+    setUser(me)
+    setStatus('authenticated')
+    void checkPortalStatus()
+  }, [checkPortalStatus])
+
   const signOut = useCallback(async () => {
     await authApi.logout()
     setUser(null)
@@ -115,11 +125,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       hasPortalConnection,
       signIn,
       register,
+      signInWithGoogle,
       signOut,
       deleteAccount,
       markPortalConnected,
     }),
-    [status, user, hasPortalConnection, signIn, register, signOut, deleteAccount, markPortalConnected],
+    [
+      status,
+      user,
+      hasPortalConnection,
+      signIn,
+      register,
+      signInWithGoogle,
+      signOut,
+      deleteAccount,
+      markPortalConnected,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -3,6 +3,7 @@
     "name": "nextstep-mobile",
     "slug": "nextstep-mobile",
     "version": "1.0.0",
+    "scheme": "futurely",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +24,8 @@
     },
     "plugins": [
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser"
     ]
   }
 }
