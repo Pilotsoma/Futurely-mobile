@@ -1,36 +1,35 @@
 import './global.css'
 import React from 'react'
+import { View, Text, StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { ThemeProvider, useTheme } from './src/theme/ThemeContext'
-import { AuthProvider } from './src/context/AuthContext'
-import RootNavigator from './src/navigation/RootNavigator'
-
-// Inner component so StatusBar can read theme.
-function AppContent(): React.JSX.Element {
-  const { isDark } = useTheme()
-  return (
-    <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <RootNavigator />
-    </>
-  )
-}
-
+// Minimal boot stub — rebuilt incrementally per melodic-wobbling-pillow.md.
+// ThemeProvider/AuthProvider/RootNavigator are wired back in as each layer lands.
 export default function App(): React.JSX.Element {
   return (
-    // GestureHandlerRootView is required by react-native-gesture-handler
-    // (used by the drawer navigator) — must wrap the entire tree.
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </ThemeProvider>
+        <StatusBar style="light" />
+        <View style={styles.container}>
+          <Text style={styles.text}>Futurely — rebuilding</Text>
+        </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#0D1829',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    color: '#E8EEFF',
+    fontSize: 16,
+  },
+})
