@@ -1,26 +1,26 @@
 import './global.css'
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { NavigationContainer } from '@react-navigation/native'
 
 import { AuthProvider } from './src/context/AuthContext'
-import AuthNavigator from './src/navigation/AuthNavigator'
+import RootNavigator from './src/navigation/RootNavigator'
 
-// Temporary direct-mount for incremental verification — replaced by RootNavigator
-// (auth gate + ConnectSchool + main Drawer) once Phase 7 lands.
 export default function App(): React.JSX.Element {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    // GestureHandlerRootView is required by react-native-gesture-handler
+    // (used by the drawer navigator) — must wrap the entire tree.
+    <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <StatusBar style="light" />
         <AuthProvider>
-          <NavigationContainer>
-            <AuthNavigator />
-          </NavigationContainer>
+          <RootNavigator />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({ flex: { flex: 1 } })
