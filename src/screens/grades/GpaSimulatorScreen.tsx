@@ -91,7 +91,7 @@ export default function GpaSimulatorScreen(): React.JSX.Element {
           save or change your real grades.
         </Text>
 
-        <Card style={styles.gpaCard}>
+        <Card variant="gradient" style={styles.gpaCard}>
           <Text style={styles.gpaValue}>{simulatedGpa !== null ? simulatedGpa.toFixed(2) : '—'}</Text>
           <Text style={styles.gpaCaption}>Simulated {gpaType} GPA</Text>
           <View style={styles.toggleRow}>
@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingVertical: spacing.lg },
   note: { ...typography.caption, color: colors.textSecondary },
   gpaCard: { alignItems: 'center', gap: spacing.sm },
-  gpaValue: { ...typography.display, color: colors.primary },
-  gpaCaption: { ...typography.caption, color: colors.textSecondary },
+  gpaValue: { ...typography.display, color: colors.text },
+  gpaCaption: { ...typography.caption, color: 'rgba(240, 241, 255, 0.7)' },
   toggleRow: { flexDirection: 'row', gap: spacing.sm },
   toggleButton: { flex: 1 },
   courseCard: { gap: spacing.sm },

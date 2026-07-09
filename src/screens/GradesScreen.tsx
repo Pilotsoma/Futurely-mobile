@@ -8,11 +8,19 @@ import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
 import { Card } from '../components/ui/Card'
 import { GradeBadge } from '../components/ui/GradeBadge'
+import { ListRow } from '../components/ui/ListRow'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { CurrentGradeCourse, GpaSummary } from '../types/grades'
 import type { GradesStackParamList } from '../navigation/GradesNavigator'
-import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
+import { colors, gradeColors, radii, spacing, typography } from '../theme/tokens'
+
+function letterToColor(letter: string | null): string {
+  if (letter && letter.charAt(0) in gradeColors) {
+    return gradeColors[letter.charAt(0) as keyof typeof gradeColors]
+  }
+  return colors.textMuted
+}
 
 type Nav = NativeStackNavigationProp<GradesStackParamList>
 
@@ -91,9 +99,23 @@ export default function GradesScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Grades</Text>
 
-        <Card style={styles.gpaCard}>
-          <Text style={styles.gpaValue}>{gpa?.weightedGpa !== null && gpa?.weightedGpa !== undefined ? gpa.weightedGpa.toFixed(2) : '—'}</Text>
-          <Text style={styles.gpaCaption}>Weighted GPA{gpa?.systemType ? ` · ${gpa.systemType}` : ''}</Text>
+        <Card variant="gradient" style={styles.gpaCard}>
+          <Text style={styles.gpaCardLabel}>GPA{gpa?.systemType ? ` · ${gpa.systemType}` : ''}</Text>
+          <View style={styles.gpaRow}>
+            <View>
+              <Text style={styles.gpaValue}>
+                {gpa?.unweightedGpa !== null && gpa?.unweightedGpa !== undefined ? gpa.unweightedGpa.toFixed(2) : '—'}
+              </Text>
+              <Text style={styles.gpaCaption}>Unweighted</Text>
+            </View>
+            <View style={styles.gpaDivider} />
+            <View>
+              <Text style={styles.gpaValueSecondary}>
+                {gpa?.weightedGpa !== null && gpa?.weightedGpa !== undefined ? gpa.weightedGpa.toFixed(2) : '—'}
+              </Text>
+              <Text style={styles.gpaCaption}>Weighted</Text>
+            </View>
+          </View>
         </Card>
 
         <View style={styles.navGrid}>
@@ -118,13 +140,14 @@ export default function GradesScreen(): React.JSX.Element {
           <Text style={styles.emptyText}>No courses found yet.</Text>
         ) : (
           courses.map((course) => (
-            <Card key={course.id} style={styles.courseCard}>
-              <View style={styles.courseInfo}>
-                <Text style={styles.courseName}>{course.name}</Text>
-                <Text style={styles.courseTeacher}>{course.teacher}</Text>
-              </View>
-              <GradeBadge letter={course.letterGrade} size="lg" />
-            </Card>
+            <ListRow
+              key={course.id}
+              leading={<GradeBadge letter={course.letterGrade} size="lg" />}
+              title={course.name}
+              subtitle={course.teacher}
+              trailingValue={course.average !== null ? `${course.average}%` : undefined}
+              trailingValueColor={letterToColor(course.letterGrade)}
+            />
           ))
         )}
       </ScrollView>
@@ -135,9 +158,13 @@ export default function GradesScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingVertical: spacing.lg },
   title: { ...typography.h1, color: colors.text },
-  gpaCard: { alignItems: 'center', gap: spacing.xs },
-  gpaValue: { ...typography.display, color: colors.primary },
-  gpaCaption: { ...typography.caption, color: colors.textSecondary },
+  gpaCard: { gap: spacing.md },
+  gpaCardLabel: { ...typography.label, color: 'rgba(240, 241, 255, 0.7)' },
+  gpaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xl },
+  gpaDivider: { width: 1, height: 40, backgroundColor: 'rgba(255, 255, 255, 0.16)' },
+  gpaValue: { ...typography.display, color: colors.text },
+  gpaValueSecondary: { ...typography.h1, color: 'rgba(240, 241, 255, 0.85)' },
+  gpaCaption: { ...typography.caption, color: 'rgba(240, 241, 255, 0.7)' },
   navGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   navCard: {
     width: '47%',
@@ -150,7 +177,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     minHeight: 56,
-    ...elevation.sm,
   },
   navCardPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   navCardIcon: {
@@ -163,9 +189,5 @@ const styles = StyleSheet.create({
   },
   navCardLabel: { ...typography.h3, fontSize: 13.5, color: colors.text, flexShrink: 1 },
   sectionTitle: { ...typography.h2, color: colors.text, marginTop: spacing.sm },
-  courseCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  courseInfo: { flex: 1, gap: spacing.xs, marginRight: spacing.sm },
-  courseName: { ...typography.h3, color: colors.text },
-  courseTeacher: { ...typography.caption, color: colors.textSecondary },
   emptyText: { ...typography.body, color: colors.textMuted },
 })
