@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import * as authApi from '../api/authApi'
+import * as gradesApi from '../api/gradesApi'
 import { clearTokens, loadTokens } from '../utils/storage'
 import type { AuthUser, LoginRequest, RegisterRequest } from '../types/auth'
 
@@ -8,10 +9,14 @@ type AuthStatus = 'initializing' | 'unauthenticated' | 'authenticated'
 interface AuthContextValue {
   status: AuthStatus
   user: AuthUser | null
+  /** null while the portal-status check is in flight after authentication resolves. */
+  hasPortalConnection: boolean | null
   signIn: (payload: LoginRequest) => Promise<void>
   register: (payload: RegisterRequest) => Promise<void>
   signOut: () => Promise<void>
   deleteAccount: (password?: string) => Promise<void>
+  /** Called by ConnectSchoolScreen after a successful login+sync, to skip re-querying status. */
+  markPortalConnected: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -19,6 +24,19 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [status, setStatus] = useState<AuthStatus>('initializing')
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [hasPortalConnection, setHasPortalConnection] = useState<boolean | null>(null)
+
+  const checkPortalStatus = useCallback(async () => {
+    setHasPortalConnection(null)
+    try {
+      const status = await gradesApi.getPortalStatus()
+      setHasPortalConnection(status.connected)
+    } catch {
+      // A failed status check is treated as "not connected" — worst case the user
+      // re-lands on ConnectSchool and reconnects, rather than getting stuck loading.
+      setHasPortalConnection(false)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -36,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         if (cancelled) return
         setUser(me)
         setStatus('authenticated')
+        void checkPortalStatus()
       } catch {
         if (cancelled) return
         await clearTokens()
@@ -47,37 +66,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [checkPortalStatus])
 
-  const signIn = useCallback(async (payload: LoginRequest) => {
-    const result = await authApi.login(payload)
-    setUser(result.user)
-    setStatus('authenticated')
-  }, [])
+  const signIn = useCallback(
+    async (payload: LoginRequest) => {
+      const result = await authApi.login(payload)
+      setUser(result.user)
+      setStatus('authenticated')
+      void checkPortalStatus()
+    },
+    [checkPortalStatus],
+  )
 
-  const register = useCallback(async (payload: RegisterRequest) => {
-    // Apply the session directly from the tokens register() already stored —
-    // no redundant extra getMe() round-trip (the deleted version did this).
-    const result = await authApi.register(payload)
-    setUser(result.user)
-    setStatus('authenticated')
-  }, [])
+  const register = useCallback(
+    async (payload: RegisterRequest) => {
+      // Apply the session directly from the tokens register() already stored —
+      // no redundant extra getMe() round-trip (the deleted version did this).
+      const result = await authApi.register(payload)
+      setUser(result.user)
+      setStatus('authenticated')
+      void checkPortalStatus()
+    },
+    [checkPortalStatus],
+  )
 
   const signOut = useCallback(async () => {
     await authApi.logout()
     setUser(null)
     setStatus('unauthenticated')
+    setHasPortalConnection(null)
   }, [])
 
   const deleteAccount = useCallback(async (password?: string) => {
     await authApi.deleteAccount(password)
     setUser(null)
     setStatus('unauthenticated')
+    setHasPortalConnection(null)
+  }, [])
+
+  const markPortalConnected = useCallback(() => {
+    setHasPortalConnection(true)
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, signIn, register, signOut, deleteAccount }),
-    [status, user, signIn, register, signOut, deleteAccount],
+    () => ({
+      status,
+      user,
+      hasPortalConnection,
+      signIn,
+      register,
+      signOut,
+      deleteAccount,
+      markPortalConnected,
+    }),
+    [status, user, hasPortalConnection, signIn, register, signOut, deleteAccount, markPortalConnected],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

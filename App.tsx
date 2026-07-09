@@ -1,35 +1,26 @@
 import './global.css'
 import React from 'react'
-import { View, Text, StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { NavigationContainer } from '@react-navigation/native'
 
-// Minimal boot stub — rebuilt incrementally per melodic-wobbling-pillow.md.
-// ThemeProvider/AuthProvider/RootNavigator are wired back in as each layer lands.
+import { AuthProvider } from './src/context/AuthContext'
+import AuthNavigator from './src/navigation/AuthNavigator'
+
+// Temporary direct-mount for incremental verification — replaced by RootNavigator
+// (auth gate + ConnectSchool + main Drawer) once Phase 7 lands.
 export default function App(): React.JSX.Element {
   return (
-    <GestureHandlerRootView style={styles.flex}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <View style={styles.container}>
-          <Text style={styles.text}>Futurely — rebuilding</Text>
-        </View>
+        <AuthProvider>
+          <NavigationContainer>
+            <AuthNavigator />
+          </NavigationContainer>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: {
-    flex: 1,
-    backgroundColor: '#0D1829',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    color: '#E8EEFF',
-    fontSize: 16,
-  },
-})
