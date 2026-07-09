@@ -4,7 +4,7 @@ import { DrawerContentScrollView, type DrawerContentComponentProps } from '@reac
 import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { FuturelyLogo } from '../components/ui/FuturelyLogo'
-import { colors, spacing, touchTarget, typography } from '../theme/tokens'
+import { colors, radii, spacing, touchTarget, typography } from '../theme/tokens'
 import type { MainDrawerParamList } from './MainNavigator'
 
 interface NavItem {
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: 11,
     paddingHorizontal: spacing.md,
-    borderRadius: 10,
+    borderRadius: radii.sm,
     minHeight: touchTarget,
     position: 'relative',
   },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   logoutBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 9,
+    borderRadius: radii.sm,
     paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',
