@@ -10,7 +10,18 @@ import { Input } from '../components/ui/Input'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { CollegeInsights, CollegeListItem, CollegeSearchResult } from '../types/colleges'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, radii, spacing, typography } from '../theme/tokens'
+
+// Colors the admission-fit label (e.g. "Far Reach", "Target", "Safety") by
+// keyword — the field is free text from the backend, not a strict enum, so
+// this is a best-effort bucket rather than an exhaustive mapping.
+function labelColor(label: string): string {
+  const lower = label.toLowerCase()
+  if (lower.includes('reach')) return colors.error
+  if (lower.includes('safety')) return colors.success
+  if (lower.includes('target') || lower.includes('match')) return '#4F8CFF'
+  return colors.primary
+}
 
 export default function CollegesScreen(): React.JSX.Element {
   const [saved, setSaved] = useState<CollegeListItem[]>([])
@@ -148,7 +159,11 @@ export default function CollegesScreen(): React.JSX.Element {
               <View style={styles.collegeHeader}>
                 <View style={styles.collegeInfo}>
                   <Text style={styles.collegeName}>{item.name}</Text>
-                  {item.label ? <Text style={styles.collegeLabel}>{item.label}</Text> : null}
+                  {item.label ? (
+                    <View style={[styles.collegeLabelPill, { backgroundColor: `${labelColor(item.label)}22` }]}>
+                      <Text style={[styles.collegeLabel, { color: labelColor(item.label) }]}>{item.label}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Button
                   label="Remove"
@@ -193,7 +208,13 @@ const styles = StyleSheet.create({
   collegeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   collegeInfo: { flex: 1, gap: spacing.xs, marginRight: spacing.sm },
   collegeName: { ...typography.h3, color: colors.text },
-  collegeLabel: { ...typography.caption, color: colors.primary },
+  collegeLabelPill: {
+    alignSelf: 'flex-start',
+    borderRadius: radii.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  collegeLabel: { ...typography.caption, fontSize: 11, fontWeight: '600' },
   removeButton: { height: 36, paddingHorizontal: spacing.sm },
   insightText: { ...typography.body, color: colors.textSecondary },
 })
