@@ -8,8 +8,15 @@
 export const API_BASE_URL = 'http://localhost:3001'
 
 export const CRUD_TIMEOUT_MS = 10_000
-export const SCRAPE_TIMEOUT_MS = 45_000
+// Covers both HAC/PowerSchool scraping (backend's own scrape timeouts are 20-45s) and
+// LLM-backed generation (college insights measured at ~26s server-side in live testing;
+// AI chat has a smaller max_tokens but shares the tier rather than risking a third value).
+export const LONG_RUNNING_TIMEOUT_MS = 45_000
 
-export function isScrapingEndpoint(path: string): boolean {
-  return path.startsWith('/integrations/grades/')
+export function isLongRunningEndpoint(path: string): boolean {
+  return (
+    path.startsWith('/integrations/grades/') ||
+    path.startsWith('/ai/') ||
+    /^\/colleges\/\d+\/insights$/.test(path)
+  )
 }

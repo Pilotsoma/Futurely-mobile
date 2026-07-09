@@ -13,7 +13,7 @@ import { colors, spacing, typography } from '../theme/tokens'
 type PortalType = 'HAC' | 'PowerSchool'
 
 export default function ConnectSchoolScreen(): React.JSX.Element {
-  const { markPortalConnected } = useAuth()
+  const { markPortalConnected, signOut } = useAuth()
   const [portalType, setPortalType] = useState<PortalType>('HAC')
 
   // HAC state
@@ -78,6 +78,13 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
           Link your school account so Futurely can show your real grades, schedule, and more.
         </Text>
       </View>
+
+      <Button
+        label="Sign out"
+        onPress={() => void signOut()}
+        variant="secondary"
+        style={styles.signOutButton}
+      />
 
       <View style={styles.tabRow}>
         <Button
@@ -179,4 +186,5 @@ const styles = StyleSheet.create({
   districtState: { fontSize: typography.caption.fontSize, color: colors.textSecondary },
   credentialsCard: { gap: spacing.sm, marginBottom: spacing.md },
   error: { fontSize: typography.caption.fontSize, color: colors.error, marginBottom: spacing.md },
+  signOutButton: { alignSelf: 'flex-end', height: 32, paddingHorizontal: spacing.sm, marginBottom: spacing.sm },
 })

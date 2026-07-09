@@ -1,4 +1,4 @@
-import { API_BASE_URL, CRUD_TIMEOUT_MS, isScrapingEndpoint, SCRAPE_TIMEOUT_MS } from '../constants/api'
+import { API_BASE_URL, CRUD_TIMEOUT_MS, isLongRunningEndpoint, LONG_RUNNING_TIMEOUT_MS } from '../constants/api'
 import { clearTokens, loadTokens, storeTokens } from '../utils/storage'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
@@ -63,7 +63,7 @@ async function rawFetch(
   opts: RequestOptions,
   accessToken: string | null,
 ): Promise<Response> {
-  const timeoutMs = isScrapingEndpoint(path) ? SCRAPE_TIMEOUT_MS : CRUD_TIMEOUT_MS
+  const timeoutMs = isLongRunningEndpoint(path) ? LONG_RUNNING_TIMEOUT_MS : CRUD_TIMEOUT_MS
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
@@ -80,8 +80,8 @@ async function rawFetch(
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ApiRequestError(
-        isScrapingEndpoint(path)
-          ? 'The school portal did not respond in time. Please try again.'
+        isLongRunningEndpoint(path)
+          ? 'This is taking longer than expected. Please try again.'
           : 'Request timed out. Please check your connection and try again.',
         408,
         'TIMEOUT',
