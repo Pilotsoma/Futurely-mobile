@@ -181,11 +181,14 @@ export default function PlannerScreen(): React.JSX.Element {
     <Screen>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Planner</Text>
-        <Button
-          label={showCreate ? 'Cancel' : '+ New task'}
+        <Pressable
           onPress={() => setShowCreate((v) => !v)}
-          variant="secondary"
-        />
+          style={styles.addButton}
+          accessibilityRole="button"
+          accessibilityLabel={showCreate ? 'Cancel new task' : 'New task'}
+        >
+          <Feather name={showCreate ? 'x' : 'plus'} size={20} color={colors.text} />
+        </Pressable>
       </View>
 
       {showCreate ? (
@@ -314,6 +317,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: { ...typography.h1, color: colors.text },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   createCard: { gap: spacing.sm, marginBottom: spacing.md },
   error: { ...typography.caption, color: colors.error },
   listContent: { paddingBottom: spacing.xl },
