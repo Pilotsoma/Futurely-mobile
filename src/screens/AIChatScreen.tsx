@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native'
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import * as aiApi from '../api/aiApi'
 import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
-import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
+import { colors, gradients, radii, spacing, typography } from '../theme/tokens'
 
 interface ChatMessage {
   id: string
@@ -81,23 +82,39 @@ export default function AIChatScreen(): React.JSX.Element {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>AI Chat</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.brainAvatar}>
+              <MaterialCommunityIcons name="brain" size={20} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.title}>Futurely AI</Text>
+              <View style={styles.statusRow}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>Online</Text>
+              </View>
+            </View>
+          </View>
           {messages.length > 0 ? (
-            <Button label="Clear" onPress={clearHistory} variant="secondary" style={styles.clearButton} />
+            <Pressable onPress={clearHistory} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear chat">
+              <Feather name="refresh-ccw" size={18} color={colors.textMuted} />
+            </Pressable>
           ) : null}
         </View>
 
         {messages.length === 0 ? (
-          <View style={styles.chipsRow}>
-            {QUICK_CHIPS.map((chip) => (
-              <Button
-                key={chip}
-                label={chip}
-                onPress={() => void handleSend(chip)}
-                variant="secondary"
-                style={styles.chip}
-              />
-            ))}
+          <View style={styles.chipsWrap}>
+            <Text style={styles.chipsLabel}>Try asking</Text>
+            <View style={styles.chipsRow}>
+              {QUICK_CHIPS.map((chip) => (
+                <Pressable
+                  key={chip}
+                  onPress={() => void handleSend(chip)}
+                  style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+                >
+                  <Text style={styles.chipText}>{chip}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         ) : null}
 
@@ -129,7 +146,24 @@ export default function AIChatScreen(): React.JSX.Element {
             placeholder="Ask about grades, planning, college..."
             style={styles.input}
           />
-          <Button label="Send" onPress={() => void handleSend(input)} loading={sending} style={styles.sendButton} />
+          <Pressable
+            onPress={() => void handleSend(input)}
+            disabled={sending}
+            style={({ pressed }) => [styles.sendButton, pressed && styles.sendButtonPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+          >
+            <Svg style={StyleSheet.absoluteFillObject} pointerEvents="none">
+              <Defs>
+                <LinearGradient id="sendGradient" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0" stopColor={gradients.accent[0]} stopOpacity={1} />
+                  <Stop offset="1" stopColor={gradients.accent[1]} stopOpacity={1} />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height="100%" fill="url(#sendGradient)" />
+            </Svg>
+            <Feather name="send" size={18} color="#FFFFFF" />
+          </Pressable>
         </View>
       </Screen>
     </KeyboardAvoidingView>
@@ -138,25 +172,60 @@ export default function AIChatScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  title: { ...typography.h1, color: colors.text },
-  clearButton: { height: 32, paddingHorizontal: spacing.sm },
-  chipsRow: { gap: spacing.sm, marginBottom: spacing.md },
-  chip: { alignItems: 'flex-start' },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  brainAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { ...typography.h2, color: colors.text },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+  statusText: { ...typography.caption, color: colors.success },
+  chipsWrap: { gap: spacing.sm, marginBottom: spacing.md },
+  chipsLabel: { ...typography.label, color: colors.textSecondary },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    width: '47%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.ms,
+    paddingVertical: spacing.sm,
+  },
+  chipPressed: { backgroundColor: colors.surface2 },
+  chipText: { ...typography.caption, color: colors.text },
   listContent: { gap: spacing.sm, paddingBottom: spacing.md },
   bubble: { maxWidth: '85%', padding: spacing.md, borderRadius: radii.md },
-  userBubble: { backgroundColor: colors.primary, alignSelf: 'flex-end', ...elevation.sm },
+  userBubble: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
   assistantBubble: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: colors.border,
     alignSelf: 'flex-start',
-    ...elevation.sm,
   },
   bubbleText: { ...typography.body, color: colors.text },
   userBubbleText: { color: '#FFFFFF' },
   error: { ...typography.caption, color: colors.error, marginVertical: spacing.xs },
   inputRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-end', marginTop: spacing.sm },
   input: { flex: 1 },
-  sendButton: { width: 80 },
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonPressed: { opacity: 0.85 },
 })
