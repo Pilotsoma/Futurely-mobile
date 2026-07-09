@@ -11,7 +11,7 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { CurrentGradeCourse, GpaSummary } from '../types/grades'
 import type { GradesStackParamList } from '../navigation/GradesNavigator'
-import { colors, radii, spacing, typography } from '../theme/tokens'
+import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
 
 type Nav = NativeStackNavigationProp<GradesStackParamList>
 
@@ -88,7 +88,7 @@ export default function GradesScreen(): React.JSX.Element {
           {NAV_CARDS.map((item) => (
             <Pressable
               key={item.route}
-              style={styles.navCard}
+              style={({ pressed }) => [styles.navCard, pressed && styles.navCardPressed]}
               onPress={() => navigation.navigate(item.route)}
               accessibilityRole="button"
               accessibilityLabel={item.label}
@@ -133,7 +133,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     minHeight: 56,
     justifyContent: 'center',
+    ...elevation.sm,
   },
+  navCardPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   navCardLabel: { ...typography.h3, color: colors.text },
   sectionTitle: { ...typography.h2, color: colors.text, marginTop: spacing.sm },
   courseCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
