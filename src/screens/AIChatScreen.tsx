@@ -6,7 +6,7 @@ import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
 
 interface ChatMessage {
   id: string
@@ -144,9 +144,15 @@ const styles = StyleSheet.create({
   chipsRow: { gap: spacing.sm, marginBottom: spacing.md },
   chip: { alignItems: 'flex-start' },
   listContent: { gap: spacing.sm, paddingBottom: spacing.md },
-  bubble: { maxWidth: '85%', padding: spacing.md, borderRadius: 12 },
-  userBubble: { backgroundColor: colors.primary, alignSelf: 'flex-end' },
-  assistantBubble: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
+  bubble: { maxWidth: '85%', padding: spacing.md, borderRadius: radii.md },
+  userBubble: { backgroundColor: colors.primary, alignSelf: 'flex-end', ...elevation.sm },
+  assistantBubble: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignSelf: 'flex-start',
+    ...elevation.sm,
+  },
   bubbleText: { ...typography.body, color: colors.text },
   userBubbleText: { color: '#FFFFFF' },
   error: { ...typography.caption, color: colors.error, marginVertical: spacing.xs },
