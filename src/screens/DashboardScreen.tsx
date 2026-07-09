@@ -14,7 +14,7 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { StudentMe } from '../types/student'
 import type { GpaSummary } from '../types/grades'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, elevation, radii, spacing, typography } from '../theme/tokens'
 
 export default function DashboardScreen(): React.JSX.Element {
   const { user } = useAuth()
@@ -133,7 +133,9 @@ export default function DashboardScreen(): React.JSX.Element {
             <Text style={styles.cardLabel}>This week</Text>
             <View style={styles.statsRow}>
               <StatItem label="Due today" value={student.stats.assignmentsDueToday} />
+              <View style={styles.statDivider} />
               <StatItem label="Due this week" value={student.stats.assignmentsDueThisWeek} />
+              <View style={styles.statDivider} />
               <StatItem label="Pending" value={student.stats.pendingAssignments} />
             </View>
           </Card>
@@ -157,7 +159,12 @@ function StatItem({ label, value }: { label: string; value: number }): React.JSX
 const styles = StyleSheet.create({
   scroll: { gap: spacing.md, paddingVertical: spacing.lg },
   greeting: { ...typography.h1, color: colors.text },
-  coinCard: { backgroundColor: colors.primaryDim, borderColor: colors.primaryGlow },
+  coinCard: {
+    backgroundColor: colors.primaryDim,
+    borderColor: colors.primaryGlow,
+    borderRadius: radii.lg,
+    ...elevation.md,
+  },
   coinTitle: { ...typography.h3, color: colors.text },
   coinSubtitle: { ...typography.caption, color: colors.textSecondary },
   gapMd: { gap: spacing.md },
@@ -166,8 +173,9 @@ const styles = StyleSheet.create({
   gpaValue: { ...typography.display, color: colors.primary },
   gpaValueSecondary: { ...typography.h1, color: colors.text },
   gpaCaption: { ...typography.caption, color: colors.textSecondary },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  statItem: { alignItems: 'center', gap: spacing.xs },
+  statsRow: { flexDirection: 'row', alignItems: 'center' },
+  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: colors.border, marginVertical: spacing.xs },
+  statItem: { flex: 1, alignItems: 'center', gap: spacing.xs },
   statValue: { ...typography.h2, color: colors.text },
   statLabel: { ...typography.caption, color: colors.textSecondary },
   inlineError: { ...typography.caption, color: colors.error },
