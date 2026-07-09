@@ -7,8 +7,9 @@ import { Screen } from '../components/ui/Screen'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
+import { FuturelyLogo } from '../components/ui/FuturelyLogo'
 import { SORTED_ISD_LIST, type ISDEntry } from '../constants/isds'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, radii, spacing, typography } from '../theme/tokens'
 
 type PortalType = 'HAC' | 'PowerSchool'
 
@@ -73,6 +74,7 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
+        <FuturelyLogo size={48} />
         <Text style={styles.title}>Connect your school portal</Text>
         <Text style={styles.subtitle}>
           Link your school account so Futurely can show your real grades, schedule, and more.
@@ -167,9 +169,14 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: spacing.xs, marginBottom: spacing.lg },
-  title: { fontSize: typography.h1.fontSize, fontWeight: typography.h1.fontWeight, color: colors.text },
-  subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary },
+  header: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+  title: {
+    fontSize: typography.h1.fontSize,
+    fontWeight: typography.h1.fontWeight,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary, textAlign: 'center' },
   tabRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   tabButton: { flex: 1 },
   form: { gap: spacing.sm, marginBottom: spacing.md },
@@ -179,7 +186,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    borderRadius: radii.sm,
   },
   districtRowSelected: { backgroundColor: colors.primaryDim },
   districtName: { fontSize: typography.body.fontSize, color: colors.text },

@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import { KeyboardAvoidingView, Platform } from 'react-native'
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import * as authApi from '../api/authApi'
 import { ApiRequestError } from '../api/client'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { Card } from '../components/ui/Card'
 import { FuturelyLogo } from '../components/ui/FuturelyLogo'
-import { colors, spacing, typography } from '../theme/tokens'
+import { colors, radii, spacing, touchTarget, typography } from '../theme/tokens'
 
 type Mode = 'login' | 'register'
 type RegisterStep = 'dob' | 'account' | 'terms'
@@ -148,11 +149,12 @@ export default function LoginScreen(): React.JSX.Element {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <FuturelyLogo size={56} />
+          <FuturelyLogo size={80} />
           <Text style={styles.title}>Futurely</Text>
           <Text style={styles.subtitle}>Your AI-powered academic companion</Text>
         </View>
 
+        <Card style={styles.authCard}>
         {mode === 'login' ? (
           <View style={styles.form}>
             <Input
@@ -270,6 +272,7 @@ export default function LoginScreen(): React.JSX.Element {
             <Button label="Back to sign in" onPress={() => switchMode('login')} variant="secondary" />
           </View>
         )}
+        </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -285,21 +288,28 @@ function CheckboxRow({
   label: string
 }): React.JSX.Element {
   return (
-    <Button
-      label={`${checked ? '☑' : '☐'}  ${label}`}
+    <Pressable
       onPress={onToggle}
-      variant="secondary"
-      style={styles.checkboxButton}
-    />
+      style={styles.checkboxRow}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+    >
+      <View style={[styles.checkboxBox, checked && styles.checkboxBoxChecked]}>
+        {checked ? <Feather name="check" size={14} color="#FFFFFF" /> : null}
+      </View>
+      <Text style={styles.checkboxLabel}>{label}</Text>
+    </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.screenPadding, gap: spacing.xl },
-  header: { alignItems: 'center', gap: spacing.sm },
+  header: { alignItems: 'center', gap: spacing.ms },
   title: { fontSize: typography.h1.fontSize, fontWeight: typography.h1.fontWeight, color: colors.text },
   subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary },
+  authCard: { borderRadius: radii.xl, padding: spacing.xl },
   form: { gap: spacing.md },
   stepTitle: {
     fontSize: typography.h2.fontSize,
@@ -308,5 +318,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   error: { fontSize: typography.caption.fontSize, color: colors.error },
-  checkboxButton: { alignItems: 'flex-start', justifyContent: 'flex-start', paddingHorizontal: spacing.md },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: touchTarget,
+  },
+  checkboxBox: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.xs / 2,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBoxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkboxLabel: { ...typography.body, color: colors.text, flex: 1 },
 })
