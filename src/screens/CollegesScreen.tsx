@@ -109,14 +109,14 @@ export default function CollegesScreen(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
   }
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Text style={styles.title}>Colleges</Text>
       <Input
         label="Search colleges"

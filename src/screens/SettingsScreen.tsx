@@ -120,7 +120,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
@@ -128,7 +128,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   if (error && !student) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <ErrorRetryBlock
           message={error}
           onRetry={() => {
@@ -141,7 +141,7 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Settings</Text>
         <Text style={styles.email}>{user?.email}</Text>

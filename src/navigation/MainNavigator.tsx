@@ -9,24 +9,20 @@ import StudyFeedScreen from '../screens/StudyFeedScreen'
 import CollegesScreen from '../screens/CollegesScreen'
 import AIChatScreen from '../screens/AIChatScreen'
 import SettingsScreen from '../screens/SettingsScreen'
-import MoreScreen from '../screens/MoreScreen'
 import { colors, radii } from '../theme/tokens'
 
-// Bottom tabs (not a drawer) matching the Figma prototype's signature nav —
-// 5 primary destinations (Home/Grades/AI/Planner/Feed) + a "More" 6th tab for
-// Colleges/Settings/Sign out, since a 7th-item drawer doesn't map onto a tab bar.
-// Colleges and Settings stay real, directly-navigable routes (hidden from the
-// tab bar via tabBarButton) so `navigation.navigate('Colleges'|'Settings')`
-// keeps working exactly as before — only the chrome changed, not routing.
+// Bottom tabs (not a drawer) matching the Figma prototype's signature nav.
+// Visible tabs: Home/Grades/AI/Planner/Colleges/Settings. Study Feed stays a
+// real, directly-navigable route (hidden via tabBarButton) rather than being
+// deleted — routing/params are unaffected, only which tabs are shown changed.
 export type MainTabParamList = {
   Dashboard: undefined
   Grades: undefined
   AIChat: undefined
   Planner: undefined
-  StudyFeed: undefined
-  More: undefined
   Colleges: undefined
   Settings: undefined
+  StudyFeed: undefined
 }
 
 const Tab = createBottomTabNavigator<MainTabParamList>()
@@ -46,7 +42,10 @@ export default function MainNavigator(): React.JSX.Element {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border, height: 64, paddingTop: 6 },
+        // No explicit height/paddingTop — bottom-tabs sizes itself around the
+        // bottom safe-area inset automatically; overriding height clipped the
+        // label text on devices with a gesture/button nav bar.
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
@@ -99,42 +98,39 @@ export default function MainNavigator(): React.JSX.Element {
         }}
       />
       <Tab.Screen
-        name="StudyFeed"
-        component={StudyFeedScreen}
+        name="Colleges"
+        component={CollegesScreen}
         options={{
-          title: 'Feed',
+          title: 'Colleges',
           tabBarIcon: ({ focused, color, size }) => (
             <TabIcon focused={focused}>
-              <Feather name="users" size={size} color={color} />
+              <Feather name="bookmark" size={size} color={color} />
             </TabIcon>
           ),
         }}
       />
       <Tab.Screen
-        name="More"
-        component={MoreScreen}
+        name="Settings"
+        component={SettingsScreen}
         options={{
-          title: 'More',
+          title: 'Settings',
           tabBarIcon: ({ focused, color, size }) => (
             <TabIcon focused={focused}>
-              <Feather name="more-horizontal" size={size} color={color} />
+              <Feather name="settings" size={size} color={color} />
             </TabIcon>
           ),
         }}
       />
-      <Tab.Screen name="Colleges" component={CollegesScreen} options={hideFromTabBar()} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={hideFromTabBar()} />
+      <Tab.Screen name="StudyFeed" component={StudyFeedScreen} options={hideFromTabBar()} />
     </Tab.Navigator>
   )
 }
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 40,
-    height: 28,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
     borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   iconWrapActive: { backgroundColor: colors.primaryDim },
 })

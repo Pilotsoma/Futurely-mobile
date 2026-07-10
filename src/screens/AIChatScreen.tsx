@@ -80,7 +80,7 @@ export default function AIChatScreen(): React.JSX.Element {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.brainAvatar}>
@@ -193,9 +193,11 @@ const styles = StyleSheet.create({
   statusText: { ...typography.caption, color: colors.success },
   chipsWrap: { gap: spacing.sm, marginBottom: spacing.md },
   chipsLabel: { ...typography.label, color: colors.textSecondary },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: spacing.sm },
   chip: {
-    width: '47%',
+    flexBasis: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,

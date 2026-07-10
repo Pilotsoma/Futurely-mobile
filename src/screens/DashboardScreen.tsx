@@ -130,7 +130,7 @@ export default function DashboardScreen(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
@@ -138,7 +138,7 @@ export default function DashboardScreen(): React.JSX.Element {
 
   if (error && !student) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <ErrorRetryBlock
           message={error}
           onRetry={() => {
@@ -153,7 +153,7 @@ export default function DashboardScreen(): React.JSX.Element {
   const displayName = (student?.name ?? user?.name ?? 'Student').split(' ')[0]
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
           <View>

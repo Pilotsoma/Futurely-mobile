@@ -157,7 +157,7 @@ export default function PlannerScreen(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
@@ -165,7 +165,7 @@ export default function PlannerScreen(): React.JSX.Element {
 
   if (error && assignments.length === 0) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <ErrorRetryBlock
           message={error}
           onRetry={() => {
@@ -178,7 +178,7 @@ export default function PlannerScreen(): React.JSX.Element {
   }
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Planner</Text>
         <Pressable

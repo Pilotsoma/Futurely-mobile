@@ -211,14 +211,14 @@ export default function StudyFeedScreen(): React.JSX.Element {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top', 'left', 'right', 'bottom']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
   }
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Text style={styles.title}>Study Feed</Text>
       <View style={styles.tabRow}>
         <Button label="All" variant={tab === 'all' ? 'primary' : 'secondary'} onPress={() => setTab('all')} style={styles.tabButton} />
