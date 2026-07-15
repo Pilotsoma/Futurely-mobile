@@ -5,7 +5,7 @@
 //   - iOS Simulator:                        http://localhost:3001
 //   - Android Emulator:                     http://10.0.2.2:3001
 //   - Physical device via Expo Go:          http://<your-computer's-LAN-IP>:3001
-export const API_BASE_URL = 'http://192.168.40.75:3001'
+export const API_BASE_URL = 'http://10.0.2.2:3001'
 
 export const CRUD_TIMEOUT_MS = 10_000
 // Covers both HAC/PowerSchool scraping (backend's own scrape timeouts are 20-45s) and

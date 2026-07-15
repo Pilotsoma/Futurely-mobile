@@ -12,22 +12,15 @@ import { FuturelyLogo } from '../components/ui/FuturelyLogo'
 import { SORTED_ISD_LIST, type ISDEntry } from '../constants/isds'
 import { colors, radii, spacing, typography } from '../theme/tokens'
 
-type PortalType = 'HAC' | 'PowerSchool'
-
 export default function ConnectSchoolScreen(): React.JSX.Element {
   const { markPortalConnected, signOut } = useAuth()
-  const [portalType, setPortalType] = useState<PortalType>('HAC')
 
-  // HAC state
   const [search, setSearch] = useState('')
   const [selectedDistrict, setSelectedDistrict] = useState<ISDEntry | null>(null)
+  const [isdOpen, setIsdOpen] = useState(false)
   const [useCustomUrl, setUseCustomUrl] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
 
-  // PowerSchool state
-  const [psBaseUrl, setPsBaseUrl] = useState('')
-
-  // Shared credential state
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -39,14 +32,19 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
     return SORTED_ISD_LIST.filter((d) => d.name.toLowerCase().includes(q))
   }, [search])
 
-  const hacBaseUrl = useCustomUrl ? customUrl.trim() : selectedDistrict?.hacUrl
+  const baseUrl = useCustomUrl ? customUrl.trim() : selectedDistrict?.hacUrl
+
+  function selectDistrict(item: ISDEntry): void {
+    setSelectedDistrict(item)
+    setSearch(item.name)
+    setIsdOpen(false)
+  }
 
   async function handleSubmit(): Promise<void> {
     setError(null)
-    const baseUrl = portalType === 'HAC' ? hacBaseUrl : psBaseUrl.trim()
 
     if (!baseUrl) {
-      setError(portalType === 'HAC' ? 'Choose your district or enter a custom URL.' : 'Enter your district URL.')
+      setError('Choose your district or enter a custom URL.')
       return
     }
     if (!username.trim() || !password) {
@@ -56,11 +54,11 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
 
     setSubmitting(true)
     try {
-      if (portalType === 'HAC') {
-        await gradesApi.hacLogin({ baseUrl, username: username.trim(), password })
-      } else {
-        await gradesApi.powerSchoolLogin({ baseUrl, username: username.trim(), password })
-      }
+      // Every district in the list resolves to Home Access Center — the backend
+      // has no per-district portal lookup, and (matching web's registration
+      // flow) PowerSchool is only ever reached by hand-entering a custom URL,
+      // which isn't exposed here to keep district selection portal-agnostic.
+      await gradesApi.hacLogin({ baseUrl, username: username.trim(), password })
       // Best-effort initial sync — connection already succeeded even if this fails,
       // so we don't block on it; the user can re-sync from Dashboard/Settings.
       await gradesApi.syncProfile().catch(() => undefined)
@@ -89,77 +87,50 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
         style={styles.signOutButton}
       />
 
-      <View style={styles.portalChoiceRow}>
-        <PortalChoiceCard
-          label="Home Access Center"
-          subtitle="Used by most Texas districts"
-          iconColor="#4F8CFF"
-          iconBg="rgba(79,140,255,0.16)"
-          selected={portalType === 'HAC'}
-          onPress={() => setPortalType('HAC')}
-        />
-        <PortalChoiceCard
-          label="PowerSchool"
-          subtitle="Widely used across the US"
-          iconColor="#F97316"
-          iconBg="rgba(249,115,22,0.16)"
-          selected={portalType === 'PowerSchool'}
-          onPress={() => setPortalType('PowerSchool')}
-        />
-      </View>
-
-      {portalType === 'HAC' ? (
-        <View style={styles.form}>
-          {!useCustomUrl ? (
-            <>
-              <Input
-                label="Search your district"
-                value={search}
-                onChangeText={setSearch}
-                placeholder="e.g. Katy ISD"
-              />
+      <View style={styles.form}>
+        {!useCustomUrl ? (
+          <>
+            <Input
+              label="Search your district"
+              value={search}
+              onChangeText={(text) => {
+                setSearch(text)
+                setSelectedDistrict(null)
+                setIsdOpen(true)
+              }}
+              onFocus={() => setIsdOpen(true)}
+              placeholder="e.g. Katy ISD"
+            />
+            {isdOpen ? (
               <FlatList
                 data={filteredDistricts}
                 keyExtractor={(item) => item.name}
                 style={styles.list}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => setSelectedDistrict(item)}
-                    style={[styles.districtRow, selectedDistrict?.name === item.name && styles.districtRowSelected]}
-                  >
+                  <Pressable onPress={() => selectDistrict(item)} style={styles.districtRow}>
                     <Text style={styles.districtName}>{item.name}</Text>
                     <Text style={styles.districtState}>{item.state}</Text>
                   </Pressable>
                 )}
                 ListEmptyComponent={<Text style={styles.subtitle}>No matching district.</Text>}
               />
-              <Button label="My district isn't listed" onPress={() => setUseCustomUrl(true)} variant="secondary" />
-            </>
-          ) : (
-            <>
-              <Input
-                label="District portal URL"
-                value={customUrl}
-                onChangeText={setCustomUrl}
-                placeholder="https://hac.yourdistrict.org"
-                autoCapitalize="none"
-              />
-              <Button label="Pick from list instead" onPress={() => setUseCustomUrl(false)} variant="secondary" />
-            </>
-          )}
-        </View>
-      ) : (
-        <View style={styles.form}>
-          <Input
-            label="District portal URL"
-            value={psBaseUrl}
-            onChangeText={setPsBaseUrl}
-            placeholder="https://yourdistrict.powerschool.com"
-            autoCapitalize="none"
-          />
-        </View>
-      )}
+            ) : null}
+            <Button label="My district isn't listed" onPress={() => setUseCustomUrl(true)} variant="secondary" />
+          </>
+        ) : (
+          <>
+            <Input
+              label="District portal URL"
+              value={customUrl}
+              onChangeText={setCustomUrl}
+              placeholder="https://hac.yourdistrict.org"
+              autoCapitalize="none"
+            />
+            <Button label="Pick from list instead" onPress={() => setUseCustomUrl(false)} variant="secondary" />
+          </>
+        )}
+      </View>
 
       <Card style={styles.credentialsCard}>
         <Input label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" />
@@ -181,40 +152,6 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
   )
 }
 
-function PortalChoiceCard({
-  label,
-  subtitle,
-  iconColor,
-  iconBg,
-  selected,
-  onPress,
-}: {
-  label: string
-  subtitle: string
-  iconColor: string
-  iconBg: string
-  selected: boolean
-  onPress: () => void
-}): React.JSX.Element {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.portalCard, selected && styles.portalCardSelected]}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={label}
-    >
-      <View style={[styles.portalIcon, { backgroundColor: iconBg }]}>
-        <Feather name="globe" size={18} color={iconColor} />
-      </View>
-      <View style={styles.portalTextWrap}>
-        <Text style={styles.portalLabel}>{label}</Text>
-        <Text style={styles.portalSubtitle}>{subtitle}</Text>
-      </View>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   title: {
@@ -224,28 +161,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: { fontSize: typography.body.fontSize, color: colors.textSecondary, textAlign: 'center' },
-  portalChoiceRow: { gap: spacing.sm, marginBottom: spacing.md },
-  portalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.ms,
-    padding: spacing.ms,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-  },
-  portalCardSelected: { borderColor: colors.primary, backgroundColor: colors.primaryDim },
-  portalIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  portalTextWrap: { flex: 1, gap: 2 },
-  portalLabel: { ...typography.h3, fontSize: 14.5, color: colors.text },
-  portalSubtitle: { ...typography.caption, color: colors.textSecondary },
   securityNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -267,7 +182,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radii.sm,
   },
-  districtRowSelected: { backgroundColor: colors.primaryDim },
   districtName: { fontSize: typography.body.fontSize, color: colors.text },
   districtState: { fontSize: typography.caption.fontSize, color: colors.textSecondary },
   credentialsCard: { gap: spacing.sm, marginBottom: spacing.md },
