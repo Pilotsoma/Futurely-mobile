@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,13 +19,7 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { CurrentGradeCourse, GpaSummary } from '../types/grades'
 import type { GradesStackParamList } from '../navigation/GradesNavigator'
-import {
-  colors,
-  elevation,
-  fonts,
-  radii,
-  spacing,
-} from '../theme/tokens'
+import { colors, elevation, radii, spacing } from '../theme/tokens'
 
 type Nav = NativeStackNavigationProp<GradesStackParamList>
 type FeatherName = React.ComponentProps<typeof Feather>['name']
@@ -44,15 +39,15 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Assignments and current averages',
     route: 'Classwork',
     icon: 'bar-chart-2',
-    color: '#36D5A5',
-    iconBackground: 'rgba(16,185,129,0.14)',
+    color: '#38D9AC',
+    iconBackground: 'rgba(16,185,129,0.15)',
   },
   {
     label: 'Report Card',
     description: 'Official grades by reporting period',
     route: 'ReportCard',
     icon: 'clipboard',
-    color: '#6CB6FF',
+    color: '#68B5FF',
     iconBackground: 'rgba(59,130,246,0.16)',
   },
   {
@@ -60,7 +55,7 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Your classes and periods',
     route: 'Schedule',
     icon: 'clock',
-    color: '#FFC547',
+    color: '#FFC247',
     iconBackground: 'rgba(245,158,11,0.15)',
   },
   {
@@ -68,7 +63,7 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Simulate grade and GPA changes',
     route: 'GpaSimulator',
     icon: 'percent',
-    color: '#B49AFF',
+    color: '#B59BFF',
     iconBackground: 'rgba(127,34,254,0.18)',
   },
   {
@@ -76,7 +71,7 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Quickly contact your teachers',
     route: 'ContactTeachers',
     icon: 'mail',
-    color: '#FF9A56',
+    color: '#FF9658',
     iconBackground: 'rgba(249,115,22,0.15)',
   },
   {
@@ -84,7 +79,7 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Review interim grade reports',
     route: 'ProgressReport',
     icon: 'trending-up',
-    color: '#C0A7FF',
+    color: '#C1A8FF',
     iconBackground: 'rgba(167,139,250,0.16)',
   },
   {
@@ -92,7 +87,7 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     description: 'Credits and GPA history',
     route: 'Transcript',
     icon: 'file-text',
-    color: '#8794FF',
+    color: '#8997FF',
     iconBackground: 'rgba(99,102,241,0.16)',
   },
   {
@@ -105,18 +100,14 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
   },
 ]
 
-const ACADEMIC_TOOL_ROWS: AcademicTool[][] = Array.from(
-  { length: Math.ceil(ACADEMIC_TOOLS.length / 2) },
-  (_, index) => ACADEMIC_TOOLS.slice(index * 2, index * 2 + 2),
-)
-
 function toFiniteNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
+
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function resultMessage(error: unknown, fallback: string): string {
+function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiRequestError ? error.message : fallback
 }
 
@@ -148,16 +139,30 @@ export default function GradesScreen(): React.JSX.Element {
       setGpa(gpaResult.value)
     }
 
-    if (currentResult.status === 'rejected' && gpaResult.status === 'rejected') {
+    if (
+      currentResult.status === 'rejected' &&
+      gpaResult.status === 'rejected'
+    ) {
       setFatalError(
-        resultMessage(currentResult.reason, 'Could not load your grades. Please try again.'),
+        getErrorMessage(
+          currentResult.reason,
+          'Could not load your grades. Please try again.',
+        ),
       )
     } else if (currentResult.status === 'rejected') {
       setInlineError(
-        resultMessage(currentResult.reason, 'Your course list could not be loaded.'),
+        getErrorMessage(
+          currentResult.reason,
+          'Your current course data could not be loaded.',
+        ),
       )
     } else if (gpaResult.status === 'rejected') {
-      setInlineError(resultMessage(gpaResult.reason, 'Your GPA could not be loaded.'))
+      setInlineError(
+        getErrorMessage(
+          gpaResult.reason,
+          'Your GPA could not be loaded.',
+        ),
+      )
     }
 
     setLoading(false)
@@ -171,6 +176,7 @@ export default function GradesScreen(): React.JSX.Element {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
+
     try {
       await load()
     } finally {
@@ -186,29 +192,45 @@ export default function GradesScreen(): React.JSX.Element {
       await gradesApi.syncProfile()
       await load()
     } catch (error) {
-      setInlineError(resultMessage(error, 'Grade sync failed. Please try again.'))
+      setInlineError(
+        getErrorMessage(
+          error,
+          'Grade sync failed. Please check your portal connection.',
+        ),
+      )
     } finally {
       setSyncing(false)
     }
   }, [load])
 
   const unweightedGpa =
-    toFiniteNumber(gpa?.unweightedGpa) ?? toFiniteNumber(gpa?.gpa) ?? 0
+    toFiniteNumber(gpa?.unweightedGpa) ??
+    toFiniteNumber(gpa?.gpa) ??
+    0
+
   const weightedGpa =
-    toFiniteNumber(gpa?.weightedGpa) ?? toFiniteNumber(gpa?.gpa) ?? 0
+    toFiniteNumber(gpa?.weightedGpa) ??
+    toFiniteNumber(gpa?.gpa) ??
+    0
 
   const courseCount = Math.max(
     0,
-    Math.round(toFiniteNumber(gpa?.courseCount) ?? courses.length),
+    Math.round(
+      toFiniteNumber(gpa?.courseCount) ?? courses.length,
+    ),
   )
 
   const averageGrade = useMemo(() => {
-    const validAverages = courses
+    const averages = courses
       .map((course) => toFiniteNumber(course.average))
       .filter((value): value is number => value !== null)
 
-    if (validAverages.length === 0) return null
-    return validAverages.reduce((sum, value) => sum + value, 0) / validAverages.length
+    if (averages.length === 0) return null
+
+    return (
+      averages.reduce((total, value) => total + value, 0) /
+      averages.length
+    )
   }, [courses])
 
   if (loading) {
@@ -249,185 +271,274 @@ export default function GradesScreen(): React.JSX.Element {
         }
       >
         <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text allowFontScaling={false} style={styles.eyebrow}>
-              ACADEMIC CENTER
-            </Text>
-            <Text allowFontScaling={false} style={styles.pageTitle}>
-              Grades
-            </Text>
-            <Text allowFontScaling={false} style={styles.pageSubtitle}>
-              Your GPA, classes and academic progress in one place.
-            </Text>
-          </View>
+          <Text allowFontScaling={false} style={styles.eyebrow}>
+            ACADEMIC CENTER
+          </Text>
+
+          <Text allowFontScaling={false} style={styles.pageTitle}>
+            Grades
+          </Text>
+
+          <Text allowFontScaling={false} style={styles.pageSubtitle}>
+            Your GPA, gradebook and academic tools in one place.
+          </Text>
         </View>
 
         <View style={styles.gpaCard}>
-          <View pointerEvents="none" style={styles.gpaStripeLarge} />
-          <View pointerEvents="none" style={styles.gpaStripeSmall} />
-          <View pointerEvents="none" style={styles.gpaGlow} />
+          <View pointerEvents="none" style={styles.gpaStripeOne} />
+          <View pointerEvents="none" style={styles.gpaStripeTwo} />
+          <View pointerEvents="none" style={styles.gpaFooterShade} />
 
-          <View style={styles.gpaContent}>
-            <View style={styles.gpaTopRow}>
-              <View>
-                <Text allowFontScaling={false} style={styles.gpaEyebrow}>
-                  GPA OVERVIEW
-                </Text>
-                <Text allowFontScaling={false} style={styles.gpaTitle}>
-                  Academic standing
-                </Text>
-              </View>
+          <View style={styles.gpaTopRow}>
+            <View style={styles.gpaHeadingCopy}>
+              <Text allowFontScaling={false} style={styles.gpaEyebrow}>
+                GPA OVERVIEW
+              </Text>
 
-              <View style={styles.gpaTopActions}>
-                <View style={styles.portalPill}>
-                  <View style={styles.portalDot} />
-                  <Text allowFontScaling={false} style={styles.portalPillText}>
-                    {gpa?.systemType ?? 'Portal'}
-                  </Text>
-                </View>
+              <Text allowFontScaling={false} style={styles.gpaTitle}>
+                Academic standing
+              </Text>
+            </View>
 
-                <Pressable
-                  disabled={syncing}
-                  onPress={() => void handleSync()}
-                  style={({ pressed }) => [
-                    styles.gpaSyncButton,
-                    pressed && !syncing && styles.gpaSyncButtonPressed,
-                    syncing && styles.disabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Re-sync grades"
+            <View style={styles.portalPill}>
+              <View style={styles.portalDot} />
+              <Text allowFontScaling={false} style={styles.portalPillText}>
+                {gpa?.systemType ?? 'Portal'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.gpaMetricsRow}>
+            <View style={styles.gpaMetric}>
+              <Text allowFontScaling={false} style={styles.gpaNumber}>
+                {unweightedGpa.toFixed(3)}
+              </Text>
+              <Text
+                allowFontScaling={false}
+                style={styles.gpaMetricLabel}
+              >
+                Unweighted
+              </Text>
+            </View>
+
+            <View style={styles.gpaDivider} />
+
+            <View style={styles.gpaMetric}>
+              <Text allowFontScaling={false} style={styles.gpaNumber}>
+                {weightedGpa.toFixed(3)}
+              </Text>
+              <Text
+                allowFontScaling={false}
+                style={styles.gpaMetricLabel}
+              >
+                Weighted
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.gpaFooter}>
+            <View style={styles.gpaSummary}>
+              <View style={styles.gpaSummaryItem}>
+                <Feather
+                  name="book-open"
+                  size={14}
+                  color="rgba(255,255,255,0.82)"
+                />
+                <Text
+                  allowFontScaling={false}
+                  style={styles.gpaSummaryText}
                 >
-                  <Feather name="refresh-cw" size={13} color="#FFFFFF" />
-                  <Text allowFontScaling={false} style={styles.gpaSyncButtonText}>
-                    {syncing ? 'Syncing' : 'Re-sync'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.gpaMetricsRow}>
-              <View style={styles.gpaMetric}>
-                <Text allowFontScaling={false} style={styles.gpaNumber}>
-                  {unweightedGpa.toFixed(3)}
-                </Text>
-                <Text allowFontScaling={false} style={styles.gpaMetricLabel}>
-                  Unweighted
-                </Text>
-              </View>
-
-              <View style={styles.gpaDivider} />
-
-              <View style={styles.gpaMetric}>
-                <Text allowFontScaling={false} style={styles.gpaNumber}>
-                  {weightedGpa.toFixed(3)}
-                </Text>
-                <Text allowFontScaling={false} style={styles.gpaMetricLabel}>
-                  Weighted
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.gpaFooter}>
-              <View style={styles.heroStat}>
-                <Feather name="book-open" size={14} color="rgba(255,255,255,0.82)" />
-                <Text allowFontScaling={false} style={styles.heroStatText}>
                   {courseCount} {courseCount === 1 ? 'course' : 'courses'}
                 </Text>
               </View>
 
-              <View style={styles.heroStatDivider} />
+              <View style={styles.summaryDivider} />
 
-              <View style={styles.heroStat}>
-                <Feather name="activity" size={14} color="rgba(255,255,255,0.82)" />
-                <Text allowFontScaling={false} style={styles.heroStatText}>
-                  {averageGrade === null ? 'No average yet' : `${averageGrade.toFixed(1)}% average`}
+              <View style={styles.gpaSummaryItem}>
+                <Feather
+                  name="activity"
+                  size={14}
+                  color="rgba(255,255,255,0.82)"
+                />
+                <Text
+                  allowFontScaling={false}
+                  style={styles.gpaSummaryText}
+                  numberOfLines={1}
+                >
+                  {averageGrade === null
+                    ? 'No average yet'
+                    : `${averageGrade.toFixed(1)}% average`}
                 </Text>
               </View>
-
             </View>
+
+            <Pressable
+              disabled={syncing}
+              onPress={() => void handleSync()}
+              style={({ pressed }) => [
+                styles.syncButton,
+                pressed && !syncing && styles.syncButtonPressed,
+                syncing && styles.disabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Re-sync grades"
+            >
+              {syncing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Feather
+                  name="refresh-cw"
+                  size={14}
+                  color="#FFFFFF"
+                />
+              )}
+
+              <Text allowFontScaling={false} style={styles.syncButtonText}>
+                {syncing ? 'Syncing' : 'Re-sync'}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
+        {inlineError ? (
+          <View style={styles.portalErrorCard}>
+            <View style={styles.portalErrorIcon}>
+              <Feather
+                name="alert-triangle"
+                size={17}
+                color="#FF8588"
+              />
+            </View>
+
+            <View style={styles.portalErrorCopy}>
+              <Text
+                allowFontScaling={false}
+                style={styles.portalErrorTitle}
+              >
+                School portal needs attention
+              </Text>
+              <Text style={styles.portalErrorText}>
+                {inlineError}
+              </Text>
+            </View>
+
+            <Pressable
+              disabled={syncing}
+              onPress={() => void handleSync()}
+              style={({ pressed }) => [
+                styles.portalRetryButton,
+                pressed && styles.portalRetryPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Retry portal sync"
+            >
+              <Feather
+                name="refresh-cw"
+                size={14}
+                color="#C9BBFF"
+              />
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderCopy}>
-            <Text allowFontScaling={false} style={styles.sectionEyebrow}>
+            <Text
+              allowFontScaling={false}
+              style={styles.sectionEyebrow}
+            >
               ACADEMIC TOOLS
             </Text>
-            <Text allowFontScaling={false} style={styles.sectionTitle}>
+
+            <Text
+              allowFontScaling={false}
+              style={styles.sectionTitle}
+            >
               Everything you need
             </Text>
-            <Text allowFontScaling={false} style={styles.sectionSubtitle}>
+
+            <Text
+              allowFontScaling={false}
+              style={styles.sectionSubtitle}
+            >
               Open your gradebook, reports, schedule and planning tools.
             </Text>
           </View>
 
           <View style={styles.toolsCountBadge}>
-            <Feather name="grid" size={14} color="#A990FF" />
-            <Text allowFontScaling={false} style={styles.toolsCountText}>
+            <Feather name="grid" size={14} color="#B9A7FF" />
+            <Text
+              allowFontScaling={false}
+              style={styles.toolsCountText}
+            >
               {ACADEMIC_TOOLS.length}
             </Text>
           </View>
         </View>
 
         <View style={styles.toolsGrid}>
-          {ACADEMIC_TOOL_ROWS.map((row, rowIndex) => (
-            <View key={`academic-tool-row-${rowIndex}`} style={styles.toolRow}>
-              {row.map((item) => (
-                <Pressable
-                  key={item.route}
-                  onPress={() => navigation.navigate(item.route)}
-                  hitSlop={4}
-                  android_ripple={{
-                    color: 'rgba(255,255,255,0.08)',
-                    borderless: false,
-                  }}
-                  style={({ pressed }) => [
-                    styles.toolCardShell,
-                    { borderLeftColor: item.color },
-                    pressed && styles.toolCardPressed,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open ${item.label}`}
-                  accessibilityHint={item.description}
+          {ACADEMIC_TOOLS.map((item) => (
+            <Pressable
+              key={item.route}
+              onPress={() => navigation.navigate(item.route)}
+              hitSlop={3}
+              android_ripple={{
+                color: 'rgba(255,255,255,0.07)',
+                borderless: false,
+              }}
+              style={({ pressed }) => [
+                styles.toolCard,
+                pressed && styles.toolCardPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${item.label}`}
+              accessibilityHint={item.description}
+            >
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.toolIcon,
+                  {
+                    backgroundColor: item.iconBackground,
+                    borderColor: `${item.color}55`,
+                  },
+                ]}
+              >
+                <Feather
+                  name={item.icon}
+                  size={20}
+                  color={item.color}
+                />
+              </View>
+
+              <View pointerEvents="none" style={styles.toolCopy}>
+                <Text
+                  allowFontScaling={false}
+                  style={styles.toolTitle}
+                  numberOfLines={1}
                 >
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.toolIcon,
-                      {
-                        backgroundColor: item.iconBackground,
-                        borderColor: `${item.color}66`,
-                      },
-                    ]}
-                  >
-                    <Feather name={item.icon} size={19} color={item.color} />
-                  </View>
+                  {item.label}
+                </Text>
 
-                  <Text
-                    pointerEvents="none"
-                    allowFontScaling={false}
-                    style={styles.toolLabel}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.label}
-                  </Text>
+                <Text
+                  allowFontScaling={false}
+                  style={styles.toolDescription}
+                  numberOfLines={2}
+                >
+                  {item.description}
+                </Text>
+              </View>
 
-                  <View pointerEvents="none" style={styles.toolChevronBox}>
-                    <Feather name="chevron-right" size={16} color="#8EA4C1" />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
+              <View pointerEvents="none" style={styles.toolChevron}>
+                <Feather
+                  name="chevron-right"
+                  size={16}
+                  color="#8298B7"
+                />
+              </View>
+            </Pressable>
           ))}
         </View>
-
-        {inlineError ? (
-          <View style={styles.inlineErrorCard}>
-            <Feather name="alert-circle" size={15} color={colors.error} />
-            <Text style={styles.inlineErrorText}>{inlineError}</Text>
-          </View>
-        ) : null}
       </ScrollView>
     </Screen>
   )
@@ -439,355 +550,381 @@ const styles = StyleSheet.create({
     paddingBottom: 118,
     gap: 16,
   },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  headerCopy: {
-    flex: 1,
-    minWidth: 0,
+    gap: 3,
   },
   eyebrow: {
     color: '#7896C2',
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.35,
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '700',
+    letterSpacing: 1.25,
   },
   pageTitle: {
     color: '#F7F9FF',
-    fontFamily: fonts.bold,
-    fontSize: 31,
-    lineHeight: 36,
-    fontWeight: '700',
-    letterSpacing: -0.8,
-    marginTop: 2,
+    fontSize: 29,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -0.7,
   },
   pageSubtitle: {
-    color: '#77859A',
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 3,
-    maxWidth: 270,
+    maxWidth: 310,
+    color: '#7F8FA7',
+    fontSize: 11.5,
+    lineHeight: 17,
   },
+
   gpaCard: {
     position: 'relative',
-    minHeight: 220,
+    minHeight: 216,
     overflow: 'hidden',
-    borderRadius: 24,
-    backgroundColor: '#6430F1',
+    borderRadius: 23,
+    backgroundColor: '#6731F2',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.20)',
     ...elevation.md,
   },
-  gpaStripeLarge: {
+  gpaStripeOne: {
     position: 'absolute',
-    top: -105,
-    left: 72,
-    width: 94,
-    height: 430,
+    top: -100,
+    left: 75,
+    width: 88,
+    height: 410,
     backgroundColor: 'rgba(255,255,255,0.045)',
     transform: [{ rotate: '25deg' }],
   },
-  gpaStripeSmall: {
+  gpaStripeTwo: {
     position: 'absolute',
     top: -90,
-    right: 88,
-    width: 52,
-    height: 410,
-    backgroundColor: 'rgba(255,255,255,0.028)',
+    right: 86,
+    width: 48,
+    height: 395,
+    backgroundColor: 'rgba(255,255,255,0.026)',
     transform: [{ rotate: '25deg' }],
   },
-  gpaGlow: {
+  gpaFooterShade: {
     position: 'absolute',
-    right: -55,
-    bottom: -80,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(36,58,206,0.27)',
-  },
-  gpaContent: {
-    minHeight: 220,
-    padding: 18,
-    justifyContent: 'space-between',
-    gap: 17,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 57,
+    backgroundColor: 'rgba(25,17,80,0.22)',
   },
   gpaTopRow: {
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+  },
+  gpaHeadingCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   gpaEyebrow: {
-    color: 'rgba(255,255,255,0.68)',
-    fontFamily: fonts.semiBold,
-    fontSize: 9.5,
-    fontWeight: '600',
-    letterSpacing: 1.15,
+    color: 'rgba(255,255,255,0.69)',
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '700',
+    letterSpacing: 1.05,
   },
   gpaTitle: {
+    marginTop: 2,
     color: '#FFFFFF',
-    fontFamily: fonts.bold,
     fontSize: 20,
     lineHeight: 25,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  gpaTopActions: {
-    alignItems: 'flex-end',
-    gap: 7,
-    flexShrink: 0,
+    fontWeight: '800',
+    letterSpacing: -0.25,
   },
   portalPill: {
-    minHeight: 27,
+    minHeight: 29,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: 'rgba(19,16,66,0.25)',
+    backgroundColor: 'rgba(23,16,72,0.28)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.17)',
   },
   portalDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
     backgroundColor: '#43E2B0',
   },
   portalPillText: {
-    color: 'rgba(255,255,255,0.86)',
-    fontFamily: fonts.semiBold,
+    color: 'rgba(255,255,255,0.90)',
     fontSize: 9.5,
-    fontWeight: '600',
+    lineHeight: 12,
+    fontWeight: '700',
   },
   gpaMetricsRow: {
-    minHeight: 72,
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    paddingHorizontal: 10,
   },
   gpaMetric: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 0,
   },
   gpaNumber: {
     color: '#FFFFFF',
-    fontFamily: fonts.bold,
     fontSize: 33,
     lineHeight: 39,
-    fontWeight: '700',
-    letterSpacing: -1.1,
+    fontWeight: '800',
+    letterSpacing: -1,
   },
   gpaMetricLabel: {
-    color: 'rgba(255,255,255,0.70)',
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    fontWeight: '500',
     marginTop: 1,
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '500',
   },
   gpaDivider: {
     width: 1,
-    height: 54,
-    backgroundColor: 'rgba(255,255,255,0.20)',
+    height: 52,
+    backgroundColor: 'rgba(255,255,255,0.21)',
   },
   gpaFooter: {
-    minHeight: 39,
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+  },
+  gpaSummary: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 11,
-    borderRadius: 13,
-    backgroundColor: 'rgba(19,16,66,0.22)',
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(22,16,70,0.22)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.13)',
   },
-  heroStat: {
+  gpaSummaryItem: {
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
   },
-  heroStatText: {
-    color: 'rgba(255,255,255,0.80)',
-    fontFamily: fonts.medium,
-    fontSize: 9.5,
-    fontWeight: '500',
+  gpaSummaryText: {
+    flexShrink: 1,
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '600',
   },
-  heroStatDivider: {
+  summaryDivider: {
     width: 1,
     height: 17,
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  gpaSyncButton: {
-    minHeight: 30,
+  syncButton: {
+    minWidth: 84,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(19,16,66,0.30)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(22,16,70,0.31)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.17)',
   },
-  gpaSyncButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  syncButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.17)',
   },
-  gpaSyncButtonText: {
+  syncButtonText: {
     color: '#FFFFFF',
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '700',
   },
+
+  portalErrorCard: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 11,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,99,103,0.075)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,99,103,0.24)',
+  },
+  portalErrorIcon: {
+    width: 37,
+    height: 37,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,99,103,0.09)',
+  },
+  portalErrorCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  portalErrorTitle: {
+    color: '#F0B0B2',
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '700',
+  },
+  portalErrorText: {
+    color: '#A98589',
+    fontSize: 9,
+    lineHeight: 13,
+  },
+  portalRetryButton: {
+    width: 35,
+    height: 35,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+    backgroundColor: '#1B163D',
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.28)',
+  },
+  portalRetryPressed: {
+    opacity: 0.82,
+  },
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    marginTop: 4,
+    marginTop: 2,
   },
   sectionHeaderCopy: {
     flex: 1,
     minWidth: 0,
   },
   sectionEyebrow: {
-    color: '#6E91C0',
-    fontFamily: fonts.semiBold,
-    fontSize: 9.5,
-    fontWeight: '600',
-    letterSpacing: 1.25,
+    color: '#7394C1',
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: '700',
+    letterSpacing: 1.15,
   },
   sectionTitle: {
-    color: colors.text,
-    fontFamily: fonts.bold,
-    fontSize: 19,
-    lineHeight: 24,
-    fontWeight: '700',
     marginTop: 2,
+    color: '#F3F6FF',
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '800',
+    letterSpacing: -0.25,
   },
   sectionSubtitle: {
-    color: '#708098',
-    fontFamily: fonts.regular,
+    maxWidth: 275,
+    marginTop: 3,
+    color: '#75859D',
     fontSize: 10.5,
     lineHeight: 15,
-    marginTop: 2,
-    maxWidth: 265,
   },
   toolsCountBadge: {
-    minWidth: 48,
+    minWidth: 47,
     height: 31,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: 5,
+    paddingHorizontal: 9,
     borderRadius: 11,
-    backgroundColor: '#121729',
+    backgroundColor: '#14172A',
     borderWidth: 1,
-    borderColor: 'rgba(151,119,255,0.24)',
+    borderColor: 'rgba(151,119,255,0.27)',
   },
   toolsCountText: {
-    color: '#C5B5FF',
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    fontWeight: '700',
+    color: '#C5B6FF',
+    fontSize: 10.5,
+    lineHeight: 13,
+    fontWeight: '800',
   },
+
   toolsGrid: {
     width: '100%',
-    alignSelf: 'stretch',
-    gap: 11,
-  },
-  toolRow: {
-    width: '100%',
-    alignSelf: 'stretch',
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 11,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 11,
   },
-  toolCardShell: {
-    position: 'relative',
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: 94,
-    overflow: 'hidden',
+  toolCard: {
+    width: '48.45%',
+    minHeight: 108,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 11,
+    paddingVertical: 11,
     borderRadius: 17,
-    backgroundColor: '#16243A',
+    backgroundColor: '#142238',
     borderWidth: 1,
-    borderColor: '#2B4262',
-    borderLeftWidth: 3,
+    borderColor: '#29415F',
+    ...elevation.sm,
   },
   toolCardPressed: {
     opacity: 0.88,
-    backgroundColor: '#1D304B',
     transform: [{ scale: 0.985 }],
+    backgroundColor: '#1A2C46',
   },
   toolIcon: {
-    position: 'absolute',
-    left: 10,
-    top: 25,
     width: 42,
     height: 42,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 13,
     borderWidth: 1,
-    zIndex: 2,
   },
-  toolLabel: {
-    position: 'absolute',
-    left: 62,
-    right: 40,
-    top: 36,
-    color: '#F5F7FF',
-    fontSize: 12.5,
-    lineHeight: 17,
-    fontWeight: '700',
+  toolCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+    marginLeft: 9,
+    marginRight: 4,
+  },
+  toolTitle: {
+    color: '#F4F7FF',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '800',
     letterSpacing: -0.1,
-    zIndex: 3,
   },
-  toolChevronBox: {
-    position: 'absolute',
-    right: 8,
-    top: 31,
-    width: 26,
-    height: 32,
+  toolDescription: {
+    color: '#8798B0',
+    fontSize: 8.7,
+    lineHeight: 12.5,
+  },
+  toolChevron: {
+    width: 25,
+    height: 31,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 9,
-    backgroundColor: '#0D1726',
+    backgroundColor: '#0A1524',
     borderWidth: 1,
-    borderColor: 'rgba(123,151,188,0.25)',
-    zIndex: 2,
+    borderColor: '#294660',
   },
-  inlineErrorCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: spacing.ms,
-    borderRadius: radii.md,
-    backgroundColor: 'rgba(255,100,103,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,100,103,0.18)',
-  },
-  inlineErrorText: {
-    flex: 1,
-    color: colors.error,
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.98 }],
-  },
+
   disabled: {
-    opacity: 0.55,
+    opacity: 0.56,
   },
 })
