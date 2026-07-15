@@ -103,14 +103,6 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     color: '#FF777A',
     iconBackground: 'rgba(239,68,68,0.15)',
   },
-  {
-    label: 'Roadmap',
-    description: 'Graduation progress and milestones',
-    route: 'Roadmap',
-    icon: 'flag',
-    color: '#5FD0C4',
-    iconBackground: 'rgba(16,185,129,0.14)',
-  },
 ]
 
 const ACADEMIC_TOOL_ROWS: AcademicTool[][] = Array.from(
@@ -381,49 +373,50 @@ export default function GradesScreen(): React.JSX.Element {
           {ACADEMIC_TOOL_ROWS.map((row, rowIndex) => (
             <View key={`academic-tool-row-${rowIndex}`} style={styles.toolRow}>
               {row.map((item) => (
-                <View
+                <Pressable
                   key={item.route}
-                  style={[
+                  onPress={() => navigation.navigate(item.route)}
+                  hitSlop={4}
+                  android_ripple={{
+                    color: 'rgba(255,255,255,0.08)',
+                    borderless: false,
+                  }}
+                  style={({ pressed }) => [
                     styles.toolCardShell,
                     { borderLeftColor: item.color },
+                    pressed && styles.toolCardPressed,
                   ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${item.label}`}
+                  accessibilityHint={item.description}
                 >
-                  <Pressable
-                    onPress={() => navigation.navigate(item.route)}
-                    style={({ pressed }) => [
-                      styles.toolCardPressable,
-                      pressed && styles.toolCardPressed,
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.toolIcon,
+                      {
+                        backgroundColor: item.iconBackground,
+                        borderColor: `${item.color}66`,
+                      },
                     ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={item.label}
                   >
-                    <View
-                      style={[
-                        styles.toolIcon,
-                        {
-                          backgroundColor: item.iconBackground,
-                          borderColor: `${item.color}66`,
-                        },
-                      ]}
-                    >
-                      <Feather name={item.icon} size={19} color={item.color} />
-                    </View>
+                    <Feather name={item.icon} size={19} color={item.color} />
+                  </View>
 
-                    <Text
-                      pointerEvents="none"
-                      allowFontScaling={false}
-                      style={styles.toolLabel}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {item.label}
-                    </Text>
+                  <Text
+                    pointerEvents="none"
+                    allowFontScaling={false}
+                    style={styles.toolLabel}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.label}
+                  </Text>
 
-                    <View pointerEvents="none" style={styles.toolChevronBox}>
-                      <Feather name="chevron-right" size={16} color="#8EA4C1" />
-                    </View>
-                  </Pressable>
-                </View>
+                  <View pointerEvents="none" style={styles.toolChevronBox}>
+                    <Feather name="chevron-right" size={16} color="#8EA4C1" />
+                  </View>
+                </Pressable>
               ))}
             </View>
           ))}
@@ -718,6 +711,7 @@ const styles = StyleSheet.create({
     gap: 11,
   },
   toolCardShell: {
+    position: 'relative',
     flex: 1,
     flexBasis: 0,
     minWidth: 0,
@@ -729,15 +723,10 @@ const styles = StyleSheet.create({
     borderColor: '#2B4262',
     borderLeftWidth: 3,
   },
-  toolCardPressable: {
-    position: 'relative',
-    flex: 1,
-    width: '100%',
-    minWidth: 0,
-  },
   toolCardPressed: {
     opacity: 0.88,
     backgroundColor: '#1D304B',
+    transform: [{ scale: 0.985 }],
   },
   toolIcon: {
     position: 'absolute',
