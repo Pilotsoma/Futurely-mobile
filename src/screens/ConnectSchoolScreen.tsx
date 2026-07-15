@@ -12,6 +12,16 @@ import { FuturelyLogo } from '../components/ui/FuturelyLogo'
 import { SORTED_ISD_LIST, type ISDEntry } from '../constants/isds'
 import { colors, radii, spacing, typography } from '../theme/tokens'
 
+// Mirrors SettingsScreen's normalizeCanvasUrl — force HTTPS on a hand-typed portal
+// URL so credentials never submit over an unencrypted scheme.
+function normalizeHacUrl(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  return withProtocol.replace(/^http:\/\//i, 'https://').replace(/\/+$/, '')
+}
+
 export default function ConnectSchoolScreen(): React.JSX.Element {
   const { markPortalConnected, signOut } = useAuth()
 
@@ -32,7 +42,7 @@ export default function ConnectSchoolScreen(): React.JSX.Element {
     return SORTED_ISD_LIST.filter((d) => d.name.toLowerCase().includes(q))
   }, [search])
 
-  const baseUrl = useCustomUrl ? customUrl.trim() : selectedDistrict?.hacUrl
+  const baseUrl = useCustomUrl ? normalizeHacUrl(customUrl) : selectedDistrict?.hacUrl
 
   function selectDistrict(item: ISDEntry): void {
     setSelectedDistrict(item)

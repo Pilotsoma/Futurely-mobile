@@ -8,11 +8,11 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -434,6 +434,26 @@ export default function CollegesScreen(): React.JSX.Element {
     if (!insightStates[item.id]) void fetchInsights(item)
   }
 
+  // Deps mirror everything toggleInsights/requestRemove/fetchInsights actually read
+  // from closure (expandedId, insightStates, removingId, saved) so the memoized
+  // renderItem never captures stale state — it just stays stable across unrelated
+  // re-renders (search typing, addingUnitId, etc.) instead of on every keystroke.
+  const renderCollegeCard = useCallback(
+    ({ item }: { item: CollegeListItem }) => (
+      <CollegeCard
+        item={item}
+        expanded={expandedId === item.id}
+        insightState={insightStates[item.id]}
+        removing={removingId === item.id}
+        onToggle={() => toggleInsights(item)}
+        onRemove={() => requestRemove(item)}
+        onRetry={() => void fetchInsights(item)}
+      />
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expandedId, insightStates, removingId, saved],
+  )
+
   if (loading) {
     return (
       <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -450,7 +470,7 @@ export default function CollegesScreen(): React.JSX.Element {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
+        <FlatList
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -463,7 +483,26 @@ export default function CollegesScreen(): React.JSX.Element {
               colors={[colors.primary]}
             />
           }
-        >
+          data={saved}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderCollegeCard}
+          ItemSeparatorComponent={() => <View style={styles.collegeCardGap} />}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <View style={styles.emptyIcon}>
+                <Feather name="bookmark" size={24} color="#A78BFA" />
+              </View>
+              <Text allowFontScaling={false} style={styles.emptyTitle}>
+                No colleges added yet
+              </Text>
+              <Text style={styles.emptyDescription}>
+                Search above and add schools you want to compare. Your
+                personalized fit scores will appear here.
+              </Text>
+            </View>
+          }
+          ListHeaderComponent={
+            <View style={styles.collegeListHeaderWrap}>
           <View style={styles.pageHeader}>
             <View style={styles.pageHeaderIcon}>
               <Feather name="bookmark" size={20} color="#BCA8FF" />
@@ -694,37 +733,9 @@ export default function CollegesScreen(): React.JSX.Element {
               </Text>
             </View>
           </View>
-
-          {saved.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <View style={styles.emptyIcon}>
-                <Feather name="bookmark" size={24} color="#A78BFA" />
-              </View>
-              <Text allowFontScaling={false} style={styles.emptyTitle}>
-                No colleges added yet
-              </Text>
-              <Text style={styles.emptyDescription}>
-                Search above and add schools you want to compare. Your
-                personalized fit scores will appear here.
-              </Text>
             </View>
-          ) : (
-            <View style={styles.collegeList}>
-              {saved.map((item) => (
-                <CollegeCard
-                  key={item.id}
-                  item={item}
-                  expanded={expandedId === item.id}
-                  insightState={insightStates[item.id]}
-                  removing={removingId === item.id}
-                  onToggle={() => toggleInsights(item)}
-                  onRemove={() => requestRemove(item)}
-                  onRetry={() => void fetchInsights(item)}
-                />
-              ))}
-            </View>
-          )}
-        </ScrollView>
+          }
+        />
       </KeyboardAvoidingView>
     </Screen>
   )
@@ -758,7 +769,7 @@ interface CollegeCardProps {
   onRetry: () => void
 }
 
-function CollegeCard({
+const CollegeCard = React.memo(function CollegeCard({
   item,
   expanded,
   insightState,
@@ -917,7 +928,7 @@ function CollegeCard({
       ) : null}
     </View>
   )
-}
+})
 
 interface InsightContentProps {
   state: InsightState | undefined
@@ -1094,7 +1105,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screenPadding,
     paddingTop: spacing.md,
     paddingBottom: spacing.huge,
+  },
+  // FlatList's ListHeaderComponent renders as a sibling of each list item inside
+  // contentContainerStyle, not a nested child — so the 24px inter-section gap that
+  // used to come from scrollContent's own `gap` now lives here (between the header's
+  // internal blocks) plus a trailing marginBottom (between the header and the first
+  // card/empty-state), while ItemSeparatorComponent (collegeCardGap) owns the tighter
+  // 13px gap between individual cards.
+  collegeListHeaderWrap: {
     gap: spacing.lg,
+    marginBottom: spacing.lg,
   },
   pressed: {
     opacity: 0.82,
@@ -1432,8 +1452,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  collegeList: {
-    gap: 13,
+  collegeCardGap: {
+    height: 13,
   },
   collegeCard: {
     overflow: 'hidden',

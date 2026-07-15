@@ -7,6 +7,7 @@ import ContactTeachersScreen from '../screens/grades/ContactTeachersScreen'
 import GpaSimulatorScreen from '../screens/grades/GpaSimulatorScreen'
 import ProgressReportScreen from '../screens/grades/ProgressReportScreen'
 import ReportCardScreen from '../screens/grades/ReportCardScreen'
+import RoadmapScreen from '../screens/grades/RoadmapScreen'
 import ScheduleScreen from '../screens/grades/ScheduleScreen'
 import TranscriptScreen from '../screens/grades/TranscriptScreen'
 import { colors, fonts } from '../theme/tokens'
@@ -19,6 +20,7 @@ export type GradesStackParamList = {
   GpaSimulator: undefined
   ProgressReport: undefined
   ReportCard: undefined
+  Roadmap: undefined
   Schedule: undefined
   Transcript: undefined
 }
@@ -54,6 +56,7 @@ export default function GradesNavigator(): React.JSX.Element {
         options={{ title: 'Progress Report' }}
       />
       <Stack.Screen name="ReportCard" component={ReportCardScreen} options={{ title: 'Report Card' }} />
+      <Stack.Screen name="Roadmap" component={RoadmapScreen} options={{ title: 'Roadmap' }} />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'Schedule' }} />
       <Stack.Screen name="Transcript" component={TranscriptScreen} options={{ title: 'Transcript' }} />
     </Stack.Navigator>

@@ -1,5 +1,11 @@
+import { DeviceEventEmitter } from 'react-native'
 import { API_BASE_URL, CRUD_TIMEOUT_MS, isLongRunningEndpoint, LONG_RUNNING_TIMEOUT_MS } from '../constants/api'
 import { clearTokens, loadTokens, storeTokens } from '../utils/storage'
+
+// AuthContext subscribes to this so a mid-session refresh failure routes the user
+// back to Login instead of leaving every screen showing a generic "could not load"
+// error with tokens already cleared but no way back short of a manual sign-out.
+export const SESSION_EXPIRED_EVENT = 'futurely.session-expired'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -104,7 +110,10 @@ async function refreshTokens(): Promise<{ token: string; refreshToken: string }>
 
   refreshPromise = (async () => {
     const stored = await loadTokens()
-    if (!stored) throw new SessionExpiredError()
+    if (!stored) {
+      DeviceEventEmitter.emit(SESSION_EXPIRED_EVENT)
+      throw new SessionExpiredError()
+    }
 
     // Raw fetch, bypassing request() entirely — a refresh failure must never
     // re-enter the 401 handling below, or it would loop.
@@ -119,6 +128,7 @@ async function refreshTokens(): Promise<{ token: string; refreshToken: string }>
 
     if (!res.ok || !body?.data) {
       await clearTokens()
+      DeviceEventEmitter.emit(SESSION_EXPIRED_EVENT)
       throw new SessionExpiredError()
     }
 

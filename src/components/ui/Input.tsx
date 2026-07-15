@@ -7,7 +7,7 @@ interface InputProps extends TextInputProps {
   error?: string
 }
 
-export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputProps): React.JSX.Element {
+export function Input({ label, error, style, onFocus, onBlur, multiline, ...rest }: InputProps): React.JSX.Element {
   const [focused, setFocused] = useState(false)
 
   const borderColor = error ? colors.error : focused ? colors.primary : colors.border
@@ -16,7 +16,7 @@ export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputPr
     <View style={styles.container}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
-        style={[styles.input, { borderColor }, style]}
+        style={[styles.input, { borderColor }, multiline && styles.inputMultiline, style]}
         placeholderTextColor={colors.textSecondary}
         onFocus={(e) => {
           setFocused(true)
@@ -27,6 +27,7 @@ export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputPr
           onBlur?.(e)
         }}
         accessibilityLabel={label}
+        multiline={multiline}
         {...rest}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -45,6 +46,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     color: colors.text,
     fontSize: typography.body.fontSize,
+  },
+  inputMultiline: {
+    height: undefined,
+    minHeight: 76,
+    paddingVertical: spacing.sm,
+    textAlignVertical: 'top',
   },
   error: { ...typography.caption, color: colors.error },
 })

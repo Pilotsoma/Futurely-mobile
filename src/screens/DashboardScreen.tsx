@@ -19,6 +19,7 @@ import { Card } from '../components/ui/Card'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import { useCountUp, useCountUpFloat } from '../hooks/useCountUp'
+import { useDisplayPreferences } from '../preferences/displayPreferences'
 import type { StudentMe } from '../types/student'
 import type { Assignment } from '../types/assignments'
 import type { GpaSummary } from '../types/grades'
@@ -82,6 +83,7 @@ function formatDate(): string {
 export default function DashboardScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>()
   const { user } = useAuth()
+  const { hideGpa } = useDisplayPreferences()
   const { height } = useWindowDimensions()
   const compact = height < 810
   const veryCompact = height < 710
@@ -242,7 +244,6 @@ export default function DashboardScreen(): React.JSX.Element {
         <Card
           variant="gradient"
           gradientColors={['#8B35FF', '#493DEB']}
-          spacing="100"
           style={[styles.gpaCard, compact && styles.gpaCardCompact]}
         >
           <View pointerEvents="none" style={styles.gpaGlowTop} />
@@ -271,7 +272,7 @@ export default function DashboardScreen(): React.JSX.Element {
           >
             <View style={styles.gpaMetric}>
               <Text style={[styles.gpaValue, compact && styles.gpaValueCompact]}>
-                {shownUnweighted.toFixed(3)}
+                {hideGpa ? '••••' : shownUnweighted.toFixed(3)}
               </Text>
               <Text style={styles.gpaCaption}>Unweighted</Text>
             </View>
@@ -286,7 +287,7 @@ export default function DashboardScreen(): React.JSX.Element {
                   compact && styles.gpaValueCompact,
                 ]}
               >
-                {shownWeighted.toFixed(3)}
+                {hideGpa ? '••••' : shownWeighted.toFixed(3)}
               </Text>
               <Text style={styles.gpaCaption}>Weighted</Text>
             </View>
@@ -702,7 +703,6 @@ const styles = StyleSheet.create({
     fontSize: 35,
     lineHeight: 41,
     letterSpacing: -1.1,
-    includeFontPadding: false,
   },
   gpaValueCompact: {
     fontSize: 31,

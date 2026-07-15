@@ -155,6 +155,26 @@ export default function PlannerScreen(): React.JSX.Element {
     return { activeSections: active, completedItems: grouped.get('Completed') ?? [] }
   }, [assignments])
 
+  // Folds the completed-items list into SectionList's own `sections` (instead of a
+  // raw .map() in ListFooterComponent) so it's windowed/virtualized like the active
+  // groups — only when there's a mix of active + completed, matching the existing
+  // "All caught up" banner behavior (below) for the all-completed case exactly.
+  const sections = useMemo(() => {
+    if (activeSections.length === 0 || completedItems.length === 0) return activeSections
+    return [...activeSections, { title: 'Completed' as Group, data: showCompleted ? completedItems : [] }]
+  }, [activeSections, completedItems, showCompleted])
+
+  // assignments is a dep because handleDelete reads it from closure for its
+  // rollback snapshot — everything else these handlers touch goes through a
+  // functional setState updater, so no other closure state can go stale here.
+  const renderAssignment = useCallback(
+    ({ item }: { item: Assignment }) => (
+      <AssignmentRow item={item} onToggle={() => void handleToggleComplete(item)} onDelete={() => void handleDelete(item)} />
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [assignments],
+  )
+
   if (loading) {
     return (
       <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -210,36 +230,14 @@ export default function PlannerScreen(): React.JSX.Element {
         <EmptyState icon="check-circle" title="Nothing due" message="You're all caught up." />
       ) : (
         <SectionList
-          sections={activeSections}
+          sections={sections}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.listContent}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.4}
           renderSectionHeader={({ section }) => {
-            const meta = GROUP_META[section.title]
-            return (
-              <View style={styles.sectionHeaderRow}>
-                <Text style={[styles.sectionTitle, meta && { color: meta.color }]}>{section.title}</Text>
-                <View style={[styles.countPill, meta && { backgroundColor: meta.bg }]}>
-                  <Text style={[styles.countPillText, meta && { color: meta.color }]}>{section.data.length}</Text>
-                </View>
-              </View>
-            )
-          }}
-          renderItem={({ item }) => (
-            <AssignmentRow item={item} onToggle={() => void handleToggleComplete(item)} onDelete={() => void handleDelete(item)} />
-          )}
-          ListFooterComponent={
-            activeSections.length === 0 && completedItems.length > 0 ? (
-              <View style={styles.allCaughtUp}>
-                <View style={styles.allCaughtUpIcon}>
-                  <Feather name="check" size={22} color={colors.success} />
-                </View>
-                <Text style={styles.allCaughtUpTitle}>All caught up!</Text>
-                <Text style={styles.allCaughtUpSubtitle}>Every assignment is completed.</Text>
-              </View>
-            ) : completedItems.length > 0 ? (
-              <View style={styles.completedWrap}>
+            if (section.title === 'Completed') {
+              return (
                 <Pressable
                   style={styles.completedToggle}
                   onPress={() => setShowCompleted((v) => !v)}
@@ -255,16 +253,27 @@ export default function PlannerScreen(): React.JSX.Element {
                     {showCompleted ? 'Hide completed assignments' : `Show completed assignments (${completedItems.length})`}
                   </Text>
                 </Pressable>
-                {showCompleted
-                  ? completedItems.map((item) => (
-                      <AssignmentRow
-                        key={item.id}
-                        item={item}
-                        onToggle={() => void handleToggleComplete(item)}
-                        onDelete={() => void handleDelete(item)}
-                      />
-                    ))
-                  : null}
+              )
+            }
+            const meta = GROUP_META[section.title]
+            return (
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.sectionTitle, meta && { color: meta.color }]}>{section.title}</Text>
+                <View style={[styles.countPill, meta && { backgroundColor: meta.bg }]}>
+                  <Text style={[styles.countPillText, meta && { color: meta.color }]}>{section.data.length}</Text>
+                </View>
+              </View>
+            )
+          }}
+          renderItem={renderAssignment}
+          ListFooterComponent={
+            activeSections.length === 0 && completedItems.length > 0 ? (
+              <View style={styles.allCaughtUp}>
+                <View style={styles.allCaughtUpIcon}>
+                  <Feather name="check" size={22} color={colors.success} />
+                </View>
+                <Text style={styles.allCaughtUpTitle}>All caught up!</Text>
+                <Text style={styles.allCaughtUpSubtitle}>Every assignment is completed.</Text>
               </View>
             ) : null
           }
@@ -280,7 +289,11 @@ interface AssignmentRowProps {
   onDelete: () => void
 }
 
-function AssignmentRow({ item, onToggle, onDelete }: AssignmentRowProps): React.JSX.Element {
+const AssignmentRow = React.memo(function AssignmentRow({
+  item,
+  onToggle,
+  onDelete,
+}: AssignmentRowProps): React.JSX.Element {
   return (
     <Card style={[styles.assignmentCard, item.completed && styles.assignmentCardCompleted]}>
       <Pressable
@@ -307,7 +320,7 @@ function AssignmentRow({ item, onToggle, onDelete }: AssignmentRowProps): React.
       </Pressable>
     </Card>
   )
-}
+})
 
 const styles = StyleSheet.create({
   headerRow: {
@@ -373,7 +386,6 @@ const styles = StyleSheet.create({
   assignmentMetaRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   assignmentSubject: { ...typography.caption, color: colors.textSecondary },
   deleteButton: { padding: spacing.xs },
-  completedWrap: { marginTop: spacing.xs },
   completedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,6 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.ms,
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
   chevronOpen: { transform: [{ rotate: '90deg' }] },

@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { DeviceEventEmitter } from 'react-native'
 import * as authApi from '../api/authApi'
 import * as gradesApi from '../api/gradesApi'
+import { SESSION_EXPIRED_EVENT } from '../api/client'
 import { clearTokens, loadTokens } from '../utils/storage'
 import type { AuthUser, LoginRequest, RegisterRequest } from '../types/auth'
 
@@ -43,12 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     let cancelled = false
 
     async function restoreSession(): Promise<void> {
-      const stored = await loadTokens()
-      if (!stored) {
-        if (!cancelled) setStatus('unauthenticated')
-        return
-      }
       try {
+        const stored = await loadTokens()
+        if (!stored) {
+          if (!cancelled) setStatus('unauthenticated')
+          return
+        }
         // authApi.getMe() already goes through client.request()'s 401-refresh-retry —
         // if it still throws, the session is genuinely gone, not just expired.
         const me = await authApi.getMe()
@@ -57,8 +59,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         setStatus('authenticated')
         void checkPortalStatus()
       } catch {
+        // Covers both a dead/expired session and a storage-layer read failure —
+        // either way there's no usable session, so fail safe to the login screen
+        // instead of leaving `status` stuck at 'initializing' forever.
         if (cancelled) return
-        await clearTokens()
+        await clearTokens().catch(() => undefined)
         setStatus('unauthenticated')
       }
     }
@@ -68,6 +73,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       cancelled = true
     }
   }, [checkPortalStatus])
+
+  // client.ts emits this when a mid-session token refresh fails (tokens already
+  // cleared there) — without this, every screen's own error handler just shows a
+  // generic "could not load" message with no path back to Login.
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(SESSION_EXPIRED_EVENT, () => {
+      setUser(null)
+      setStatus('unauthenticated')
+      setHasPortalConnection(null)
+    })
+    return () => subscription.remove()
+  }, [])
 
   const signIn = useCallback(
     async (payload: LoginRequest) => {

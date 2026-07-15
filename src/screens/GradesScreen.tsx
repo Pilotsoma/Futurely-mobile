@@ -103,6 +103,14 @@ const ACADEMIC_TOOLS: AcademicTool[] = [
     color: '#FF777A',
     iconBackground: 'rgba(239,68,68,0.15)',
   },
+  {
+    label: 'Roadmap',
+    description: 'Graduation progress and milestones',
+    route: 'Roadmap',
+    icon: 'flag',
+    color: '#5FD0C4',
+    iconBackground: 'rgba(16,185,129,0.14)',
+  },
 ]
 
 const ACADEMIC_TOOL_ROWS: AcademicTool[][] = Array.from(

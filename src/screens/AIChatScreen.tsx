@@ -284,7 +284,7 @@ export default function AIChatScreen(): React.JSX.Element {
             style={styles.chatList}
             data={messages}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <MessageBubble message={item} />}
+            renderItem={renderMessageItem}
             contentContainerStyle={styles.chatContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -619,7 +619,11 @@ function Composer({ value, onChangeText, onSend, canSend, isSending }: ComposerP
   )
 }
 
-function MessageBubble({ message }: { message: ChatMessage }): React.JSX.Element {
+const MessageBubble = React.memo(function MessageBubble({
+  message,
+}: {
+  message: ChatMessage
+}): React.JSX.Element {
   const isUser = message.role === 'user'
 
   return (
@@ -636,6 +640,13 @@ function MessageBubble({ message }: { message: ChatMessage }): React.JSX.Element
       </View>
     </View>
   )
+})
+
+// Module-scope + trivial passthrough, so it's a stable renderItem identity that
+// never forces FlatList to re-evaluate visible cells on unrelated screen re-renders
+// (e.g. composer text state changing on every keystroke).
+function renderMessageItem({ item }: { item: ChatMessage }): React.JSX.Element {
+  return <MessageBubble message={item} />
 }
 
 function TypingIndicator(): React.JSX.Element {

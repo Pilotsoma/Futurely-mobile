@@ -38,7 +38,10 @@ export default function GpaSimulatorScreen(): React.JSX.Element {
       })
   }, [data])
 
-  const courses = baseCourses.map((c, i) => overrides[i] ?? c)
+  const courses = useMemo(
+    () => baseCourses.map((c, i) => overrides[i] ?? c),
+    [baseCourses, overrides],
+  )
 
   function adjustAverage(index: number, delta: number): void {
     setOverrides((prev) => {

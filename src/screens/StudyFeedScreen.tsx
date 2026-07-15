@@ -209,6 +209,33 @@ export default function StudyFeedScreen(): React.JSX.Element {
     }
   }
 
+  // Deps mirror every closure value the wrapped handlers actually read outside a
+  // functional setState updater (posts for the delete-rollback snapshot,
+  // expandedPostId for the collapse-toggle check, commentText for the empty-reply
+  // guard) plus user/comments needed for the props themselves — so renderPost stays
+  // stable (and PostCard's React.memo can bail out) across unrelated re-renders like
+  // composeText/searchQuery typing, without ever capturing stale state.
+  const renderPost = useCallback(
+    ({ item }: { item: FeedPost }) => (
+      <PostCard
+        post={item}
+        isOwner={user?.id === item.userId}
+        expanded={expandedPostId === item.id}
+        comments={expandedPostId === item.id ? comments : EMPTY_COMMENTS}
+        commentText={commentText}
+        onChangeCommentText={setCommentText}
+        onShowProfile={(userId) => void handleShowProfile(userId)}
+        onDeletePost={(post) => void handleDeletePost(post)}
+        onToggleLike={(post) => void handleToggleLike(post)}
+        onExpandComments={(post) => void handleExpandComments(post)}
+        onToggleCommentLike={(postId, comment) => void handleToggleCommentLike(postId, comment)}
+        onAddComment={(postId) => void handleAddComment(postId)}
+      />
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [posts, user, expandedPostId, comments, commentText],
+  )
+
   if (loading) {
     return (
       <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -276,76 +303,104 @@ export default function StudyFeedScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => {
-            const authorName = item.user.name ?? item.user.hacName ?? 'Student'
-            return (
-              <Card style={styles.postCard}>
-                <View style={styles.postHeaderRow}>
-                  <Pressable
-                    style={styles.authorRow}
-                    onPress={() => void handleShowProfile(item.userId)}
-                    accessibilityRole="button"
-                    accessibilityLabel={authorName}
-                  >
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{authorName.charAt(0).toUpperCase()}</Text>
-                    </View>
-                    <Text style={styles.authorName}>{authorName}</Text>
-                  </Pressable>
-                  {user?.id === item.userId ? (
-                    <Pressable
-                      onPress={() => void handleDeletePost(item)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Delete post"
-                    >
-                      <Feather name="trash-2" size={16} color={colors.textMuted} />
-                    </Pressable>
-                  ) : null}
-                </View>
-                <Text style={styles.postBody}>{item.body}</Text>
-                <View style={styles.postActions}>
-                  <Pressable style={styles.actionRow} onPress={() => void handleToggleLike(item)}>
-                    <Feather name="heart" size={15} color={item.likedByMe ? colors.error : colors.textMuted} />
-                    <Text style={styles.actionText}>{item._count.likes}</Text>
-                  </Pressable>
-                  <Pressable style={styles.actionRow} onPress={() => void handleExpandComments(item)}>
-                    <Feather name="message-circle" size={15} color={colors.textMuted} />
-                    <Text style={styles.actionText}>{item._count.comments}</Text>
-                  </Pressable>
-                </View>
-
-                {expandedPostId === item.id ? (
-                  <View style={styles.commentsSection}>
-                    {comments.map((c) => (
-                      <View key={c.id} style={styles.commentRow}>
-                        <Text style={styles.commentAuthor}>{c.user.name ?? 'Student'}</Text>
-                        <Text style={styles.commentBody}>{c.body}</Text>
-                        <Pressable
-                          style={styles.actionRow}
-                          onPress={() => void handleToggleCommentLike(item.id, c)}
-                        >
-                          <Feather
-                            name="heart"
-                            size={13}
-                            color={c.likedByMe ? colors.error : colors.textMuted}
-                          />
-                          <Text style={styles.actionText}>{c._count?.likes ?? 0}</Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                    <Input value={commentText} onChangeText={setCommentText} placeholder="Add a comment..." />
-                    <Button label="Reply" onPress={() => void handleAddComment(item.id)} variant="secondary" />
-                  </View>
-                ) : null}
-              </Card>
-            )
-          }}
+          renderItem={renderPost}
         />
       )}
     </Screen>
   )
 }
+
+const EMPTY_COMMENTS: FeedComment[] = []
+
+interface PostCardProps {
+  post: FeedPost
+  isOwner: boolean
+  expanded: boolean
+  comments: FeedComment[]
+  commentText: string
+  onChangeCommentText: (value: string) => void
+  onShowProfile: (userId: number) => void
+  onDeletePost: (post: FeedPost) => void
+  onToggleLike: (post: FeedPost) => void
+  onExpandComments: (post: FeedPost) => void
+  onToggleCommentLike: (postId: number, comment: FeedComment) => void
+  onAddComment: (postId: number) => void
+}
+
+// Memoized so typing in the compose/reply box (StudyFeedScreen state) doesn't
+// re-render every visible post card — only the expanded one actually changes props.
+const PostCard = React.memo(function PostCard({
+  post,
+  isOwner,
+  expanded,
+  comments,
+  commentText,
+  onChangeCommentText,
+  onShowProfile,
+  onDeletePost,
+  onToggleLike,
+  onExpandComments,
+  onToggleCommentLike,
+  onAddComment,
+}: PostCardProps): React.JSX.Element {
+  const authorName = post.user.name ?? post.user.hacName ?? 'Student'
+
+  return (
+    <Card style={styles.postCard}>
+      <View style={styles.postHeaderRow}>
+        <Pressable
+          style={styles.authorRow}
+          onPress={() => onShowProfile(post.userId)}
+          accessibilityRole="button"
+          accessibilityLabel={authorName}
+        >
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{authorName.charAt(0).toUpperCase()}</Text>
+          </View>
+          <Text style={styles.authorName}>{authorName}</Text>
+        </Pressable>
+        {isOwner ? (
+          <Pressable
+            onPress={() => onDeletePost(post)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Delete post"
+          >
+            <Feather name="trash-2" size={16} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
+      </View>
+      <Text style={styles.postBody}>{post.body}</Text>
+      <View style={styles.postActions}>
+        <Pressable style={styles.actionRow} hitSlop={8} onPress={() => onToggleLike(post)}>
+          <Feather name="heart" size={15} color={post.likedByMe ? colors.error : colors.textMuted} />
+          <Text style={styles.actionText}>{post._count.likes}</Text>
+        </Pressable>
+        <Pressable style={styles.actionRow} hitSlop={8} onPress={() => onExpandComments(post)}>
+          <Feather name="message-circle" size={15} color={colors.textMuted} />
+          <Text style={styles.actionText}>{post._count.comments}</Text>
+        </Pressable>
+      </View>
+
+      {expanded ? (
+        <View style={styles.commentsSection}>
+          {comments.map((c) => (
+            <View key={c.id} style={styles.commentRow}>
+              <Text style={styles.commentAuthor}>{c.user.name ?? 'Student'}</Text>
+              <Text style={styles.commentBody}>{c.body}</Text>
+              <Pressable style={styles.actionRow} hitSlop={8} onPress={() => onToggleCommentLike(post.id, c)}>
+                <Feather name="heart" size={13} color={c.likedByMe ? colors.error : colors.textMuted} />
+                <Text style={styles.actionText}>{c._count?.likes ?? 0}</Text>
+              </Pressable>
+            </View>
+          ))}
+          <Input value={commentText} onChangeText={onChangeCommentText} placeholder="Add a comment..." />
+          <Button label="Reply" onPress={() => onAddComment(post.id)} variant="secondary" />
+        </View>
+      ) : null}
+    </Card>
+  )
+})
 
 const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.text, marginBottom: spacing.md },

@@ -916,7 +916,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
                   <PrimaryButton
                     label="Disconnect"
-                    icon="unlink"
+                    icon="link-2"
                     onPress={confirmPortalDisconnect}
                     loading={portalDisconnecting}
                     tone="danger"
