@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -10,62 +11,34 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs'
 import { Feather } from '@expo/vector-icons'
+
 import { useAuth } from '../context/AuthContext'
 import * as studentsApi from '../api/studentsApi'
 import * as gradesApi from '../api/gradesApi'
+import { sendChatMessage } from '../api/aiApi'
 import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
-import { Card } from '../components/ui/Card'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
-import { useCountUp, useCountUpFloat } from '../hooks/useCountUp'
-import { useDisplayPreferences } from '../preferences/displayPreferences'
 import type { StudentMe } from '../types/student'
 import type { Assignment } from '../types/assignments'
-import type { GpaSummary } from '../types/grades'
+import type { CurrentGradeCourse, GpaSummary } from '../types/grades'
 import type { MainTabParamList } from '../navigation/MainNavigator'
-import { colors, fonts, spacing, typography } from '../theme/tokens'
+import { useDisplayPreferences } from '../preferences/displayPreferences'
+import { colors, elevation, fonts } from '../theme/tokens'
 
 type Nav = BottomTabNavigationProp<MainTabParamList>
+type FeatherName = React.ComponentProps<typeof Feather>['name']
 
-interface QuickLink {
+interface StatTileProps {
   label: string
-  icon: React.ComponentProps<typeof Feather>['name']
-  accent: string
-  accentSoft: string
-  route: keyof MainTabParamList
+  value: number
+  icon: FeatherName
+  iconColor: string
+  iconBackground: string
+  onPress: () => void
+  reduceMotion: boolean
 }
-
-const QUICK_LINKS: QuickLink[] = [
-  {
-    label: 'Grades',
-    icon: 'bar-chart-2',
-    accent: '#26D6A4',
-    accentSoft: 'rgba(38, 214, 164, 0.14)',
-    route: 'Grades',
-  },
-  {
-    label: 'AI Chat',
-    icon: 'message-circle',
-    accent: '#A083FF',
-    accentSoft: 'rgba(160, 131, 255, 0.15)',
-    route: 'AIChat',
-  },
-  {
-    label: 'Planner',
-    icon: 'calendar',
-    accent: '#FFB52E',
-    accentSoft: 'rgba(255, 181, 46, 0.14)',
-    route: 'Planner',
-  },
-  {
-    label: 'Colleges',
-    icon: 'bookmark',
-    accent: '#61A5FF',
-    accentSoft: 'rgba(97, 165, 255, 0.14)',
-    route: 'Colleges',
-  },
-]
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -74,39 +47,134 @@ function getTimeOfDay(): string {
 
 function formatDate(): string {
   return new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
+    weekday: 'short',
+    month: 'short',
     day: 'numeric',
   })
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function dateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function assignmentIsDueToday(
+  assignment: Assignment,
+  today: Date,
+): boolean {
+  if (assignment.completed || !assignment.dueDate) return false
+
+  const rawDueDate = String(assignment.dueDate)
+  const dateOnlyMatch = rawDueDate.match(/^\d{4}-\d{2}-\d{2}/)
+
+  if (dateOnlyMatch && rawDueDate.length <= 10) {
+    return dateOnlyMatch[0] === dateKey(today)
+  }
+
+  const parsedDueDate = new Date(rawDueDate)
+  if (Number.isNaN(parsedDueDate.getTime())) return false
+
+  return dateKey(parsedDueDate) === dateKey(today)
+}
+
+function StatTile({
+  label,
+  value,
+  icon,
+  iconColor,
+  iconBackground,
+  onPress,
+  reduceMotion,
+}: StatTileProps): React.JSX.Element {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.statTile,
+        pressed &&
+          (reduceMotion
+            ? styles.pressedReducedMotion
+            : styles.pressed),
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${value} ${label}`}
+    >
+      <View
+        style={[
+          styles.statIconWrap,
+          { backgroundColor: iconBackground },
+        ]}
+      >
+        <Feather name={icon} size={19} color={iconColor} />
+      </View>
+
+      <Text allowFontScaling={false} style={styles.statValue}>
+        {value}
+      </Text>
+
+      <Text
+        allowFontScaling={false}
+        style={styles.statLabel}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
 }
 
 export default function DashboardScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>()
   const { user } = useAuth()
-  const { hideGpa } = useDisplayPreferences()
   const { height } = useWindowDimensions()
+
   const compact = height < 810
-  const veryCompact = height < 710
+  const veryCompact = height < 735
+
+  const { hideGpa, reduceMotion } = useDisplayPreferences()
+  const pressedStyle = reduceMotion
+    ? styles.pressedReducedMotion
+    : styles.pressed
 
   const [student, setStudent] = useState<StudentMe | null>(null)
   const [gpa, setGpa] = useState<GpaSummary | null>(null)
+  const [courses, setCourses] = useState<CurrentGradeCourse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
+
   const [aiPrompt, setAiPrompt] = useState('')
+  const [aiReply, setAiReply] = useState<string | null>(null)
+  const [aiSending, setAiSending] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
 
     try {
-      const [studentResult, gpaResult] = await Promise.all([
-        studentsApi.getMe(),
-        gradesApi.getGpa().catch(() => null),
-      ])
+      const [studentResult, gpaResult, currentGradesResult] =
+        await Promise.all([
+          studentsApi.getMe(),
+          gradesApi.getGpa().catch(() => null),
+          gradesApi.getCurrentGrades().catch(() => null),
+        ])
+
       setStudent(studentResult)
       setGpa(gpaResult)
+      setCourses(currentGradesResult?.grades ?? [])
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Could not load your dashboard.')
+      setError(
+        err instanceof ApiRequestError
+          ? err.message
+          : 'Could not load your dashboard.',
+      )
     } finally {
       setLoading(false)
     }
@@ -120,60 +188,106 @@ export default function DashboardScreen(): React.JSX.Element {
 
   async function handleResync(): Promise<void> {
     setSyncing(true)
+    setError(null)
 
     try {
       await gradesApi.syncProfile()
       await load()
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Sync failed. Please try again.')
+      setError(
+        err instanceof ApiRequestError
+          ? err.message
+          : 'Sync failed. Please try again.',
+      )
     } finally {
       setSyncing(false)
     }
   }
 
-  function handleAskAI(): void {
-    navigation.navigate('AIChat')
+  async function handleAskAI(promptOverride?: string): Promise<void> {
+    const prompt = (promptOverride ?? aiPrompt).trim()
+
+    if (!prompt) {
+      navigation.navigate('AIChat')
+      return
+    }
+
+    setAiPrompt(prompt)
+    setAiReply(null)
+    setAiSending(true)
+    setError(null)
+
+    try {
+      const result = await sendChatMessage(prompt)
+      setAiReply(result.reply)
+    } catch (err) {
+      setError(
+        err instanceof ApiRequestError
+          ? err.message
+          : 'myFuturely AI could not respond. Please try again.',
+      )
+    } finally {
+      setAiSending(false)
+    }
   }
 
   const profile = student?.profile
-  const weighted = gpa?.weightedGpa ?? profile?.weightedGpa ?? null
-  const unweighted = gpa?.unweightedGpa ?? profile?.unweightedGpa ?? null
 
-  // Normalize API values so the GPA never disappears when the backend returns
-  // null, undefined, or a numeric string.
-  const normalizedWeighted = Number(weighted ?? 0)
-  const normalizedUnweighted = Number(unweighted ?? 0)
-  const safeWeighted = Number.isFinite(normalizedWeighted) ? normalizedWeighted : 0
-  const safeUnweighted = Number.isFinite(normalizedUnweighted) ? normalizedUnweighted : 0
+  const unweightedGpa =
+    toFiniteNumber(gpa?.unweightedGpa) ??
+    toFiniteNumber(gpa?.gpa) ??
+    toFiniteNumber(profile?.unweightedGpa) ??
+    0
 
-  const dueToday: Assignment[] = useMemo(() => {
-    if (!student) return []
+  const weightedGpa =
+    toFiniteNumber(gpa?.weightedGpa) ??
+    toFiniteNumber(gpa?.gpa) ??
+    toFiniteNumber(profile?.weightedGpa) ??
+    0
 
-    const now = new Date()
-    return student.assignments.filter((assignment) => {
-      if (assignment.completed) return false
+  const displayUnweighted = hideGpa
+    ? '••••'
+    : unweightedGpa.toFixed(3)
 
-      const dueDate = new Date(assignment.dueDate)
-      return (
-        dueDate.getFullYear() === now.getFullYear() &&
-        dueDate.getMonth() === now.getMonth() &&
-        dueDate.getDate() === now.getDate()
-      )
-    })
+  const displayWeighted = hideGpa
+    ? '••••'
+    : weightedGpa.toFixed(3)
+
+  const dueToday = useMemo(() => {
+    if (!student) return [] as Assignment[]
+
+    const today = new Date()
+    return student.assignments.filter((assignment) =>
+      assignmentIsDueToday(assignment, today),
+    )
   }, [student])
 
-  const animWeighted = useCountUpFloat(safeWeighted)
-  const animUnweighted = useCountUpFloat(safeUnweighted)
-  const animCourses = useCountUp(student?.stats.totalCourses ?? 0)
-  const animDueToday = useCountUp(dueToday.length)
-  const animPending = useCountUp(student?.stats.pendingAssignments ?? 0)
+  const courseCount = Math.max(
+    0,
+    Math.round(
+      toFiniteNumber(gpa?.courseCount) ??
+        (courses.length > 0
+          ? courses.length
+          : student?.stats.totalCourses ?? 0),
+    ),
+  )
 
-  const shownWeighted = Number.isFinite(animWeighted) ? animWeighted : safeWeighted
-  const shownUnweighted = Number.isFinite(animUnweighted) ? animUnweighted : safeUnweighted
+  const pendingCount = Math.max(
+    0,
+    student?.stats.pendingAssignments ?? 0,
+  )
+
+  const displayName = (
+    student?.name ??
+    user?.name ??
+    'Student'
+  ).split(' ')[0]
+
+  const firstDueAssignment = dueToday[0]
 
   if (loading) {
     return (
-      <Screen edges={['top', 'left', 'right', 'bottom']}>
+      <Screen edges={['top', 'left', 'right']}>
         <LoadingSkeleton rows={4} />
       </Screen>
     )
@@ -181,7 +295,7 @@ export default function DashboardScreen(): React.JSX.Element {
 
   if (error && !student) {
     return (
-      <Screen edges={['top', 'left', 'right', 'bottom']}>
+      <Screen edges={['top', 'left', 'right']}>
         <ErrorRetryBlock
           message={error}
           onRetry={() => {
@@ -193,18 +307,8 @@ export default function DashboardScreen(): React.JSX.Element {
     )
   }
 
-  const displayName = (student?.name ?? user?.name ?? 'Student').split(' ')[0]
-  const firstDueAssignment = dueToday[0]
-
   return (
-    <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <View pointerEvents="none" style={styles.decorativeLayer}>
-        <View style={styles.glowOrbTop} />
-        <View style={styles.glowOrbLeft} />
-        <View style={styles.decorativeDotOne} />
-        <View style={styles.decorativeDotTwo} />
-      </View>
-
+    <Screen edges={['top', 'left', 'right']}>
       <View
         style={[
           styles.page,
@@ -212,267 +316,417 @@ export default function DashboardScreen(): React.JSX.Element {
           veryCompact && styles.pageVeryCompact,
         ]}
       >
-        <View style={styles.headerRow}>
+        <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text style={styles.greetingLine}>Good {getTimeOfDay()},</Text>
-            <Text style={[styles.greetingName, compact && styles.greetingNameCompact]}>
+            <Text allowFontScaling={false} style={styles.greeting}>
+              Good {getTimeOfDay()},
+            </Text>
+            <Text allowFontScaling={false} style={styles.studentName}>
               {displayName}
             </Text>
-            {!veryCompact ? (
-              <Text style={styles.headerSubtitle}>Your academic command center</Text>
-            ) : null}
           </View>
 
           <View style={styles.headerActions}>
-            <View style={styles.dateChip}>
-              <Feather name="calendar" size={12} color="#7AB4FF" />
-              <Text style={styles.dateChipText} numberOfLines={1}>
+            <View style={styles.datePill}>
+              <Feather name="calendar" size={13} color="#83BAFF" />
+              <Text allowFontScaling={false} style={styles.datePillText}>
                 {formatDate()}
               </Text>
             </View>
+
             <Pressable
+              style={({ pressed }) => [
+                styles.notificationButton,
+                pressed && pressedStyle,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Notifications"
-              style={({ pressed }) => [styles.notificationButton, pressed && styles.pressed]}
             >
-              <Feather name="bell" size={17} color="#B9C6DD" />
-              <View style={styles.notificationDot} />
+              <Feather name="bell" size={17} color="#D5DDF0" />
             </Pressable>
           </View>
         </View>
 
-        <Card
-          variant="gradient"
-          gradientColors={['#8B35FF', '#493DEB']}
-          style={[styles.gpaCard, compact && styles.gpaCardCompact]}
+        <View
+          style={[
+            styles.gpaCard,
+            compact && styles.gpaCardCompact,
+          ]}
         >
-          <View pointerEvents="none" style={styles.gpaGlowTop} />
-          <View pointerEvents="none" style={styles.gpaGlowBottom} />
+          <View pointerEvents="none" style={styles.gpaStripeOne} />
+          <View pointerEvents="none" style={styles.gpaStripeTwo} />
+          <View pointerEvents="none" style={styles.gpaBottomShade} />
 
-          <View style={styles.gpaTopRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.navigate('Grades')}
-              style={({ pressed }) => [styles.gpaTitleWrap, pressed && styles.pressed]}
-            >
-              <Text style={styles.gpaEyebrow}>ACADEMIC OVERVIEW</Text>
-              <Text style={[styles.gpaTitle, compact && styles.gpaTitleCompact]}>Your GPA</Text>
-            </Pressable>
-
-            <View style={styles.gpaEyeButton}>
-              <Feather name="eye" size={17} color="rgba(255,255,255,0.86)" />
+          <View style={styles.gpaHeader}>
+            <View style={styles.gpaHeaderCopy}>
+              <Text allowFontScaling={false} style={styles.gpaEyebrow}>
+                ACADEMIC OVERVIEW
+              </Text>
+              <Text allowFontScaling={false} style={styles.gpaTitle}>
+                Your GPA
+              </Text>
             </View>
+
+            <Pressable
+              onPress={() => navigation.navigate('Grades')}
+              style={({ pressed }) => [
+                styles.gpaViewButton,
+                pressed && pressedStyle,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open grades"
+            >
+              <Feather name="eye" size={18} color="#FFFFFF" />
+            </Pressable>
           </View>
 
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open grades"
             onPress={() => navigation.navigate('Grades')}
-            style={({ pressed }) => [styles.gpaMetricsRow, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.gpaMetricsRow,
+              pressed && pressedStyle,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={
+              hideGpa
+                ? 'GPA hidden by display preference'
+                : `Unweighted GPA ${displayUnweighted}, weighted GPA ${displayWeighted}`
+            }
           >
             <View style={styles.gpaMetric}>
-              <Text style={[styles.gpaValue, compact && styles.gpaValueCompact]}>
-                {hideGpa ? '••••' : shownUnweighted.toFixed(3)}
+              <Text
+                allowFontScaling={false}
+                style={[
+                  styles.gpaNumber,
+                  hideGpa && styles.gpaNumberHidden,
+                ]}
+              >
+                {displayUnweighted}
               </Text>
-              <Text style={styles.gpaCaption}>Unweighted</Text>
+              <Text
+                allowFontScaling={false}
+                style={styles.gpaMetricLabel}
+              >
+                Unweighted
+              </Text>
             </View>
 
             <View style={styles.gpaDivider} />
 
             <View style={styles.gpaMetric}>
               <Text
+                allowFontScaling={false}
                 style={[
-                  styles.gpaValue,
-                  styles.gpaValueSecondary,
-                  compact && styles.gpaValueCompact,
+                  styles.gpaNumber,
+                  hideGpa && styles.gpaNumberHidden,
                 ]}
               >
-                {hideGpa ? '••••' : shownWeighted.toFixed(3)}
+                {displayWeighted}
               </Text>
-              <Text style={styles.gpaCaption}>Weighted</Text>
+              <Text
+                allowFontScaling={false}
+                style={styles.gpaMetricLabel}
+              >
+                Weighted
+              </Text>
             </View>
           </Pressable>
 
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Re-sync grades"
             disabled={syncing}
             onPress={() => void handleResync()}
             style={({ pressed }) => [
               styles.syncButton,
               pressed && !syncing && styles.syncButtonPressed,
-              syncing && styles.syncButtonDisabled,
+              syncing && styles.disabled,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel="Re-sync grades"
           >
-            <Feather name={syncing ? 'loader' : 'refresh-cw'} size={14} color="#FFFFFF" />
-            <Text style={styles.syncButtonText}>
-              {syncing ? 'Syncing grades...' : 'Re-sync grades'}
+            {syncing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Feather name="refresh-cw" size={16} color="#FFFFFF" />
+            )}
+
+            <Text allowFontScaling={false} style={styles.syncButtonText}>
+              {syncing ? 'Re-syncing grades' : 'Re-sync grades'}
             </Text>
           </Pressable>
-        </Card>
+        </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('Planner')}
-          style={({ pressed }) => [
-            styles.dueCard,
-            compact && styles.dueCardCompact,
-            pressed && styles.pressed,
+        <View
+          style={[
+            styles.todayCard,
+            compact && styles.todayCardCompact,
           ]}
         >
-          <View style={styles.dueHeadingRow}>
+          <View style={styles.todayHeader}>
             <View>
-              <Text style={styles.sectionEyebrow}>TODAY</Text>
-              <Text style={[styles.cardTitle, compact && styles.cardTitleCompact]}>Due today</Text>
+              <Text allowFontScaling={false} style={styles.sectionEyebrow}>
+                TODAY
+              </Text>
+              <Text allowFontScaling={false} style={styles.sectionTitle}>
+                Due today
+              </Text>
             </View>
-            <View style={styles.calendarBadge}>
-              <Feather name="calendar" size={17} color="#68A9FF" />
-            </View>
+
+            <Pressable
+              onPress={() => navigation.navigate('Planner')}
+              style={({ pressed }) => [
+                styles.todayCalendarButton,
+                pressed && pressedStyle,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open Planner"
+            >
+              <Feather name="calendar" size={17} color="#69AEFF" />
+            </Pressable>
           </View>
 
-          {dueToday.length === 0 ? (
-            <View style={[styles.clearState, compact && styles.clearStateCompact]}>
-              <View style={styles.clearIcon}>
-                <Feather name="check" size={16} color="#20D3A0" />
-              </View>
-              <View style={styles.clearTextWrap}>
-                <Text style={styles.clearTitle}>All clear for today</Text>
-                {!veryCompact ? (
-                  <Text style={styles.clearSubtitle}>You are fully caught up.</Text>
-                ) : null}
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.assignmentState, compact && styles.assignmentStateCompact]}>
-              <View style={styles.assignmentDot} />
-              <View style={styles.assignmentCopy}>
-                <Text style={styles.assignmentTitle} numberOfLines={1}>
-                  {firstDueAssignment?.title}
-                </Text>
-                <Text style={styles.assignmentSubject} numberOfLines={1}>
-                  {firstDueAssignment?.subject}
-                  {dueToday.length > 1 ? `  •  +${dueToday.length - 1} more` : ''}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#667894" />
-            </View>
-          )}
-        </Pressable>
-
-        <View style={[styles.statsRow, compact && styles.statsRowCompact]}>
           <Pressable
-            style={({ pressed }) => [
-              styles.statCard,
-              compact && styles.statCardCompact,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => navigation.navigate('Grades')}
-          >
-            <View style={[styles.statIcon, { backgroundColor: 'rgba(59, 130, 246, 0.14)' }]}>
-              <Feather name="book-open" size={16} color="#65A5FF" />
-            </View>
-            <Text style={styles.statValue}>{animCourses}</Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Courses</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.statCard,
-              compact && styles.statCardCompact,
-              pressed && styles.pressed,
-            ]}
             onPress={() => navigation.navigate('Planner')}
-          >
-            <View style={[styles.statIcon, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-              <Feather name="clock" size={16} color="#9A77FF" />
-            </View>
-            <Text style={styles.statValue}>{animDueToday}</Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Due today</Text>
-          </Pressable>
-
-          <Pressable
             style={({ pressed }) => [
-              styles.statCard,
-              compact && styles.statCardCompact,
-              pressed && styles.pressed,
+              styles.assignmentCard,
+              dueToday.length > 0 && styles.assignmentCardActive,
+              pressed && pressedStyle,
             ]}
-            onPress={() => navigation.navigate('Planner')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              dueToday.length === 0
+                ? 'No assignments due today'
+                : `${dueToday.length} assignments due today`
+            }
           >
-            <View style={[styles.statIcon, { backgroundColor: 'rgba(245, 158, 11, 0.14)' }]}>
-              <Feather name="inbox" size={16} color="#F6AE2D" />
+            <View
+              style={[
+                styles.assignmentDot,
+                dueToday.length === 0 &&
+                  styles.assignmentDotComplete,
+              ]}
+            />
+
+            <View style={styles.assignmentCopy}>
+              <Text
+                allowFontScaling={false}
+                style={[
+                  styles.assignmentTitle,
+                  dueToday.length === 0 &&
+                    styles.assignmentTitleComplete,
+                ]}
+                numberOfLines={1}
+              >
+                {dueToday.length === 0
+                  ? 'All clear for today'
+                  : firstDueAssignment?.title}
+              </Text>
+
+              <Text
+                allowFontScaling={false}
+                style={styles.assignmentSubtitle}
+                numberOfLines={1}
+              >
+                {dueToday.length === 0
+                  ? 'You are fully caught up.'
+                  : `${firstDueAssignment?.subject ?? 'Assignment'}${
+                      dueToday.length > 1
+                        ? `  •  +${dueToday.length - 1} more`
+                        : ''
+                    }`}
+              </Text>
             </View>
-            <Text style={styles.statValue}>{animPending}</Text>
-            <Text style={styles.statLabel} numberOfLines={1}>Pending</Text>
+
+            <Feather name="chevron-right" size={18} color="#7690B5" />
           </Pressable>
         </View>
 
-        <View style={styles.quickSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.sectionEyebrow}>SHORTCUTS</Text>
-              {!veryCompact ? <Text style={styles.sectionTitle}>Quick access</Text> : null}
+        <View style={styles.statsRow}>
+          <StatTile
+            label="Courses"
+            value={courseCount}
+            icon="book-open"
+            iconColor="#70B9FF"
+            iconBackground="rgba(59,130,246,0.16)"
+            onPress={() => navigation.navigate('Grades')}
+            reduceMotion={reduceMotion}
+          />
+
+          <StatTile
+            label="Due today"
+            value={dueToday.length}
+            icon="clock"
+            iconColor="#BEA5FF"
+            iconBackground="rgba(130,91,255,0.17)"
+            onPress={() => navigation.navigate('Planner')}
+            reduceMotion={reduceMotion}
+          />
+
+          <StatTile
+            label="Pending"
+            value={pendingCount}
+            icon="inbox"
+            iconColor="#FFC44C"
+            iconBackground="rgba(245,158,11,0.16)"
+            onPress={() => navigation.navigate('Planner')}
+            reduceMotion={reduceMotion}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.aiCard,
+            compact && styles.aiCardCompact,
+          ]}
+        >
+          <View style={styles.aiHeader}>
+            <View style={styles.aiTitleRow}>
+              <View style={styles.aiIcon}>
+                <Feather name="zap" size={16} color="#C9B8FF" />
+              </View>
+
+              <View style={styles.aiHeaderCopy}>
+                <Text allowFontScaling={false} style={styles.aiEyebrow}>
+                  MYFUTURELY AI
+                </Text>
+                <Text allowFontScaling={false} style={styles.aiTitle}>
+                  Ask your academic copilot
+                </Text>
+              </View>
             </View>
-            <Feather name="grid" size={17} color="#6D7D96" />
+
+            <Pressable
+              onPress={() => navigation.navigate('AIChat')}
+              style={({ pressed }) => [
+                styles.openAiButton,
+                pressed && pressedStyle,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open full AI chat"
+            >
+              <Text allowFontScaling={false} style={styles.openAiText}>
+                Open chat
+              </Text>
+              <Feather
+                name="arrow-up-right"
+                size={14}
+                color="#C8B8FF"
+              />
+            </Pressable>
           </View>
 
-          <View style={styles.quickRow}>
-            {QUICK_LINKS.map((link) => (
+          {aiReply ? (
+            <Pressable
+              onPress={() => navigation.navigate('AIChat')}
+              style={({ pressed }) => [
+                styles.aiReplyCard,
+                pressed && pressedStyle,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Open full AI conversation"
+            >
+              <View style={styles.aiReplyIcon}>
+                <Feather
+                  name="message-circle"
+                  size={15}
+                  color="#BBA7FF"
+                />
+              </View>
+
+              <Text
+                style={styles.aiReplyText}
+                numberOfLines={veryCompact ? 1 : 2}
+              >
+                {aiReply}
+              </Text>
+
+              <Feather name="chevron-right" size={16} color="#7E90AC" />
+            </Pressable>
+          ) : (
+            <View style={styles.aiPromptRow}>
               <Pressable
-                key={link.route}
-                accessibilityRole="button"
-                onPress={() => navigation.navigate(link.route)}
+                onPress={() =>
+                  void handleAskAI(
+                    'Help me plan my school week based on my current assignments.',
+                  )
+                }
                 style={({ pressed }) => [
-                  styles.quickButton,
-                  compact && styles.quickButtonCompact,
-                  pressed && styles.pressed,
+                  styles.aiPromptChip,
+                  pressed && pressedStyle,
                 ]}
               >
-                <View style={[styles.quickIcon, { backgroundColor: link.accentSoft }]}>
-                  <Feather name={link.icon} size={21} color={link.accent} />
-                </View>
-                <Text style={styles.quickLabel} numberOfLines={1}>
-                  {link.label}
+                <Feather name="calendar" size={13} color="#78B5FF" />
+                <Text
+                  allowFontScaling={false}
+                  style={styles.aiPromptChipText}
+                >
+                  Plan my week
                 </Text>
               </Pressable>
-            ))}
-          </View>
-        </View>
 
-        <View style={styles.aiSection}>
-          {!veryCompact ? (
-            <View style={styles.aiLabelRow}>
-              <Text style={styles.sectionEyebrow}>YOUR AI COPILOT</Text>
-              <Feather name="zap" size={14} color="#9D82FF" />
+              <Pressable
+                onPress={() =>
+                  void handleAskAI(
+                    'What should I focus on first to improve my GPA?',
+                  )
+                }
+                style={({ pressed }) => [
+                  styles.aiPromptChip,
+                  pressed && pressedStyle,
+                ]}
+              >
+                <Feather
+                  name="trending-up"
+                  size={13}
+                  color="#62D9B5"
+                />
+                <Text
+                  allowFontScaling={false}
+                  style={styles.aiPromptChipText}
+                >
+                  Raise my GPA
+                </Text>
+              </Pressable>
             </View>
-          ) : null}
+          )}
 
-          <View style={[styles.aiComposer, compact && styles.aiComposerCompact]}>
-            <View pointerEvents="none" style={styles.aiComposerGlow} />
-            <View style={styles.aiAvatar}>
+          <View style={styles.aiComposer}>
+            <View style={styles.aiComposerIcon}>
               <Feather name="message-circle" size={18} color="#FFFFFF" />
             </View>
+
             <TextInput
               value={aiPrompt}
               onChangeText={setAiPrompt}
-              placeholder="Ask myFuturely AI..."
-              placeholderTextColor="#71819A"
+              placeholder="Ask myFuturely AI anything..."
+              placeholderTextColor="#74859F"
               style={styles.aiInput}
               returnKeyType="send"
-              onSubmitEditing={handleAskAI}
-              accessibilityLabel="Ask myFuturely AI"
+              onSubmitEditing={() => void handleAskAI()}
             />
+
             <Pressable
+              disabled={aiSending}
+              onPress={() => void handleAskAI()}
+              style={({ pressed }) => [
+                styles.aiSendButton,
+                pressed && !aiSending && pressedStyle,
+                aiSending && styles.disabled,
+              ]}
               accessibilityRole="button"
-              accessibilityLabel="Send question to myFuturely AI"
-              onPress={handleAskAI}
-              style={({ pressed }) => [styles.sendButton, pressed && styles.sendButtonPressed]}
+              accessibilityLabel="Ask myFuturely AI"
             >
-              <Feather name="send" size={17} color="#FFFFFF" />
+              {aiSending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Feather name="send" size={17} color="#FFFFFF" />
+              )}
             </Pressable>
           </View>
         </View>
 
-        {error ? <Text style={styles.inlineError}>{error}</Text> : null}
+        {error ? (
+          <Text style={styles.inlineError}>{error}</Text>
+        ) : null}
       </View>
     </Screen>
   )
@@ -482,588 +736,539 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     width: '100%',
+    paddingTop: 7,
+    paddingBottom: 6,
     gap: 9,
-    paddingTop: 8,
-    paddingBottom: 8,
   },
   pageCompact: {
+    paddingTop: 4,
     gap: 7,
-    paddingTop: 5,
-    paddingBottom: 5,
   },
   pageVeryCompact: {
     gap: 5,
-    paddingTop: 3,
-    paddingBottom: 3,
   },
-  decorativeLayer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  glowOrbTop: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(84, 49, 255, 0.10)',
-    top: -142,
-    right: -118,
-  },
-  glowOrbLeft: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(0, 150, 255, 0.045)',
-    top: 340,
-    left: -145,
-  },
-  decorativeDotOne: {
-    position: 'absolute',
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(91, 138, 255, 0.46)',
-    top: 104,
-    right: 39,
-  },
-  decorativeDotTwo: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(143, 98, 255, 0.45)',
-    top: 130,
-    right: 76,
-  },
-  headerRow: {
-    minHeight: 76,
+
+  header: {
+    minHeight: 74,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
+    gap: 12,
   },
   headerCopy: {
     flex: 1,
+    minWidth: 0,
   },
-  greetingLine: {
-    ...typography.body,
-    color: '#8FB5EA',
+  greeting: {
+    color: '#87B5F3',
+    fontFamily: fonts.medium,
     fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '500',
   },
-  greetingName: {
-    ...typography.display,
-    color: '#F3F6FF',
-    fontSize: 31,
-    lineHeight: 36,
+  studentName: {
+    marginTop: 2,
+    color: '#F8FAFF',
+    fontFamily: fonts.bold,
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '700',
     letterSpacing: -0.8,
-  },
-  greetingNameCompact: {
-    fontSize: 28,
-    lineHeight: 32,
-  },
-  headerSubtitle: {
-    ...typography.caption,
-    color: '#697892',
-    marginTop: 1,
-    fontSize: 10,
   },
   headerActions: {
     alignItems: 'flex-end',
     gap: 6,
-    maxWidth: '54%',
   },
-  dateChip: {
+  datePill: {
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(19, 37, 64, 0.90)',
-    borderWidth: 1,
-    borderColor: 'rgba(47, 112, 203, 0.36)',
+    gap: 6,
+    paddingHorizontal: 11,
     borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
+    backgroundColor: '#10233F',
+    borderWidth: 1,
+    borderColor: 'rgba(80,148,238,0.45)',
   },
-  dateChipText: {
-    ...typography.caption,
-    color: '#7AB4FF',
-    flexShrink: 1,
+  datePillText: {
+    color: '#83BAFF',
+    fontFamily: fonts.semiBold,
     fontSize: 10,
+    fontWeight: '600',
   },
   notificationButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 27, 47, 0.84)',
-    borderWidth: 1,
-    borderColor: 'rgba(86, 111, 148, 0.20)',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 6,
-    right: 7,
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#7C5CFF',
-    borderWidth: 1,
-    borderColor: '#0A1220',
-  },
-  gpaCard: {
-    minHeight: 202,
-    width: '100%',
-    borderRadius: 22,
-    padding: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(197, 179, 255, 0.28)',
-    shadowColor: '#6B39FF',
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 8,
-  },
-  gpaCardCompact: {
-    minHeight: 184,
-    padding: 13,
-  },
-  gpaGlowTop: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    top: -120,
-    left: -45,
-  },
-  gpaGlowBottom: {
-    position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: 'rgba(26, 41, 183, 0.17)',
-    right: -112,
-    bottom: -150,
-  },
-  gpaTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  gpaTitleWrap: {
-    flex: 1,
-  },
-  gpaEyebrow: {
-    ...typography.label,
-    color: 'rgba(244, 241, 255, 0.62)',
-    letterSpacing: 1,
-    fontSize: 9,
-  },
-  gpaTitle: {
-    ...typography.h2,
-    color: '#FFFFFF',
-    marginTop: 1,
-    fontSize: 20,
-  },
-  gpaTitleCompact: {
-    fontSize: 18,
-  },
-  gpaEyeButton: {
     width: 35,
     height: 35,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: '#101B2B',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(104,129,166,0.24)',
+  },
+
+  gpaCard: {
+    position: 'relative',
+    width: '100%',
+    minHeight: 224,
+    overflow: 'hidden',
+    borderRadius: 24,
+    backgroundColor: '#7136F4',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    ...elevation.md,
+  },
+  gpaCardCompact: {
+    minHeight: 211,
+  },
+  gpaStripeOne: {
+    position: 'absolute',
+    top: -65,
+    left: 108,
+    width: 70,
+    height: 360,
+    backgroundColor: 'rgba(255,255,255,0.055)',
+    transform: [{ rotate: '24deg' }],
+  },
+  gpaStripeTwo: {
+    position: 'absolute',
+    top: -65,
+    right: 76,
+    width: 38,
+    height: 340,
+    backgroundColor: 'rgba(255,255,255,0.032)',
+    transform: [{ rotate: '24deg' }],
+  },
+  gpaBottomShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 49,
+    backgroundColor: 'rgba(31,19,92,0.24)',
+  },
+  gpaHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+  },
+  gpaHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  gpaEyebrow: {
+    color: 'rgba(255,255,255,0.69)',
+    fontFamily: fonts.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 1.1,
+  },
+  gpaTitle: {
+    marginTop: 2,
+    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    fontSize: 21,
+    lineHeight: 25,
+    fontWeight: '700',
+  },
+  gpaViewButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    backgroundColor: 'rgba(40,25,102,0.27)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
   },
   gpaMetricsRow: {
-    width: '100%',
-    height: 78,
+    minHeight: 91,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 4,
+    paddingHorizontal: 10,
   },
   gpaMetric: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpaNumber: {
+    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    fontSize: 35,
+    lineHeight: 40,
+    fontWeight: '700',
+    letterSpacing: -1.2,
+  },
+  gpaNumberHidden: {
+    fontSize: 25,
+    letterSpacing: 2.6,
+  },
+  gpaMetricLabel: {
+    marginTop: 2,
+    color: 'rgba(255,255,255,0.72)',
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    fontWeight: '500',
   },
   gpaDivider: {
     width: 1,
-    height: 46,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  gpaValue: {
-    ...typography.display,
-    color: '#FFFFFF',
-    fontSize: 35,
-    lineHeight: 41,
-    letterSpacing: -1.1,
-  },
-  gpaValueCompact: {
-    fontSize: 31,
-    lineHeight: 35,
-  },
-  gpaValueSecondary: {
-    color: '#E4E8FF',
-  },
-  gpaCaption: {
-    ...typography.caption,
-    color: 'rgba(244, 241, 255, 0.72)',
-    marginTop: 1,
-    fontSize: 10,
+    height: 57,
+    backgroundColor: 'rgba(255,255,255,0.24)',
   },
   syncButton: {
-    height: 38,
+    minHeight: 45,
+    marginHorizontal: 16,
+    marginBottom: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: 'rgba(27,20,80,0.28)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   syncButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    transform: [{ scale: 0.99 }],
-  },
-  syncButtonDisabled: {
-    opacity: 0.72,
+    backgroundColor: 'rgba(255,255,255,0.17)',
   },
   syncButtonText: {
-    ...typography.body,
     color: '#FFFFFF',
     fontFamily: fonts.bold,
+    fontSize: 12.5,
     fontWeight: '700',
-    fontSize: 13,
   },
-  dueCard: {
-    minHeight: 118,
+
+  todayCard: {
     width: '100%',
-    gap: 9,
+    minHeight: 143,
     padding: 14,
-    borderRadius: 20,
-    backgroundColor: 'rgba(17, 31, 52, 0.94)',
+    borderRadius: 22,
+    backgroundColor: '#102039',
     borderWidth: 1,
-    borderColor: 'rgba(72, 100, 139, 0.30)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    borderColor: '#284567',
+    ...elevation.sm,
   },
-  dueCardCompact: {
-    minHeight: 106,
-    padding: 12,
-    gap: 7,
+  todayCardCompact: {
+    minHeight: 132,
+    paddingVertical: 12,
   },
-  dueHeadingRow: {
+  todayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   sectionEyebrow: {
-    ...typography.label,
-    color: '#5E79A1',
-    letterSpacing: 1.05,
-    fontSize: 9,
-  },
-  cardTitle: {
-    ...typography.h2,
-    color: '#EDF3FF',
-    marginTop: 1,
-    fontSize: 19,
-  },
-  cardTitleCompact: {
-    fontSize: 17,
-  },
-  calendarBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(56, 134, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(77, 149, 255, 0.16)',
-  },
-  clearState: {
-    minHeight: 57,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    paddingHorizontal: 12,
-    borderRadius: 15,
-    backgroundColor: 'rgba(7, 31, 36, 0.50)',
-    borderWidth: 1,
-    borderColor: 'rgba(21, 214, 160, 0.12)',
-  },
-  clearStateCompact: {
-    minHeight: 48,
-  },
-  clearIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(21, 214, 160, 0.12)',
-  },
-  clearTextWrap: {
-    flex: 1,
-  },
-  clearTitle: {
-    ...typography.body,
-    color: '#67E1BD',
+    color: '#7191BD',
     fontFamily: fonts.bold,
+    fontSize: 8.5,
+    lineHeight: 11,
     fontWeight: '700',
-    fontSize: 13,
+    letterSpacing: 1.1,
   },
-  clearSubtitle: {
-    ...typography.caption,
-    color: '#688083',
-    marginTop: 1,
-    fontSize: 10,
+  sectionTitle: {
+    marginTop: 2,
+    color: '#F5F7FF',
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: -0.25,
   },
-  assignmentState: {
-    minHeight: 57,
+  todayCalendarButton: {
+    width: 39,
+    height: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 13,
+    backgroundColor: '#0E2746',
+    borderWidth: 1,
+    borderColor: 'rgba(80,151,244,0.34)',
+  },
+  assignmentCard: {
+    minHeight: 59,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 12,
-    borderRadius: 15,
-    backgroundColor: 'rgba(28, 30, 48, 0.72)',
+    paddingHorizontal: 13,
+    borderRadius: 16,
+    backgroundColor: '#071F22',
     borderWidth: 1,
-    borderColor: 'rgba(246, 174, 45, 0.11)',
+    borderColor: 'rgba(41,210,162,0.20)',
   },
-  assignmentStateCompact: {
-    minHeight: 48,
+  assignmentCardActive: {
+    backgroundColor: '#1A2030',
+    borderColor: 'rgba(246,180,58,0.24)',
   },
   assignmentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F6AE2D',
+    width: 10,
+    height: 10,
+    flexShrink: 0,
+    borderRadius: 5,
+    backgroundColor: '#FFB83F',
+  },
+  assignmentDotComplete: {
+    backgroundColor: '#38D6A8',
   },
   assignmentCopy: {
     flex: 1,
     minWidth: 0,
   },
   assignmentTitle: {
-    ...typography.body,
-    color: '#EEF3FC',
+    color: '#F8FAFF',
     fontFamily: fonts.bold,
+    fontSize: 12.5,
+    lineHeight: 17,
     fontWeight: '700',
-    fontSize: 12,
   },
-  assignmentSubject: {
-    ...typography.caption,
-    color: '#7B8BA2',
-    marginTop: 1,
-    fontSize: 10,
+  assignmentTitleComplete: {
+    color: '#72E0BF',
   },
+  assignmentSubtitle: {
+    marginTop: 2,
+    color: '#8598B4',
+    fontFamily: fonts.regular,
+    fontSize: 9.5,
+    lineHeight: 13,
+  },
+
   statsRow: {
     width: '100%',
-    minHeight: 98,
+    minHeight: 104,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  statsRowCompact: {
-    minHeight: 88,
-  },
-  statCard: {
-    width: '31.5%',
-    minHeight: 98,
+  statTile: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 104,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 10,
-    borderRadius: 17,
-    backgroundColor: '#111F34',
+    borderRadius: 19,
+    backgroundColor: '#12233C',
     borderWidth: 1,
-    borderColor: 'rgba(91, 126, 176, 0.36)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    overflow: 'hidden',
+    borderColor: '#2C4A70',
+    ...elevation.sm,
   },
-  statCardCompact: {
-    minHeight: 88,
-    paddingVertical: 8,
-  },
-  statIcon: {
-    width: 33,
-    height: 33,
-    borderRadius: 11,
+  statIconWrap: {
+    width: 41,
+    height: 41,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.055)',
   },
   statValue: {
-    ...typography.h2,
-    color: '#F4F7FF',
-    fontSize: 21,
-    lineHeight: 23,
+    color: '#F9FBFF',
+    fontFamily: fonts.bold,
+    fontSize: 24,
+    lineHeight: 27,
+    fontWeight: '700',
   },
   statLabel: {
-    ...typography.caption,
-    color: '#95A3B9',
-    textAlign: 'center',
+    color: '#A0B1C9',
+    fontFamily: fonts.medium,
     fontSize: 10,
-    lineHeight: 12,
-  },
-  quickSection: {
-    width: '100%',
-    gap: 7,
-    marginBottom: 0,
-  },
-  sectionHeaderRow: {
-    minHeight: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    ...typography.h3,
-    color: '#EDF3FF',
-    marginTop: 1,
-    fontSize: 15,
-  },
-  quickRow: {
-    width: '100%',
-    minHeight: 96,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-  },
-  quickButton: {
-    width: '23.4%',
-    minHeight: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 10,
-    borderRadius: 17,
-    backgroundColor: '#111F34',
-    borderWidth: 1,
-    borderColor: 'rgba(82, 111, 154, 0.34)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  quickButtonCompact: {
-    minHeight: 84,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  quickIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLabel: {
-    ...typography.caption,
-    color: '#D7DFEC',
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    fontSize: 10,
-    lineHeight: 12,
+    lineHeight: 13,
+    fontWeight: '500',
     textAlign: 'center',
   },
-  aiSection: {
+
+  aiCard: {
     width: '100%',
-    gap: 5,
+    minHeight: 151,
     marginTop: 'auto',
+    gap: 10,
+    padding: 13,
+    borderRadius: 21,
+    backgroundColor: '#0E182A',
+    borderWidth: 1,
+    borderColor: '#293F5E',
+    ...elevation.sm,
   },
-  aiLabelRow: {
-    minHeight: 18,
+  aiCardCompact: {
+    minHeight: 139,
+    gap: 8,
+    paddingVertical: 11,
+  },
+  aiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
+  },
+  aiTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  aiIcon: {
+    width: 35,
+    height: 35,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: '#24175B',
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.32)',
+  },
+  aiHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  aiEyebrow: {
+    color: '#8A79D6',
+    fontFamily: fonts.bold,
+    fontSize: 8,
+    lineHeight: 10,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+  },
+  aiTitle: {
+    marginTop: 2,
+    color: '#F2F5FF',
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  openAiButton: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    borderRadius: 10,
+    backgroundColor: '#1A173D',
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.28)',
+  },
+  openAiText: {
+    color: '#C8B8FF',
+    fontFamily: fonts.bold,
+    fontSize: 8.5,
+    fontWeight: '700',
+  },
+  aiPromptRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  aiPromptChip: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 31,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 7,
+    borderRadius: 10,
+    backgroundColor: '#14243A',
+    borderWidth: 1,
+    borderColor: '#294260',
+  },
+  aiPromptChipText: {
+    color: '#A9B7CA',
+    fontFamily: fonts.semiBold,
+    fontSize: 8.7,
+    fontWeight: '600',
+  },
+  aiReplyCard: {
+    minHeight: 39,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    backgroundColor: '#141F34',
+    borderWidth: 1,
+    borderColor: '#293E5D',
+  },
+  aiReplyIcon: {
+    width: 29,
+    height: 29,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+    backgroundColor: '#211750',
+  },
+  aiReplyText: {
+    flex: 1,
+    minWidth: 0,
+    color: '#AEBBD0',
+    fontFamily: fonts.regular,
+    fontSize: 9.2,
+    lineHeight: 13,
   },
   aiComposer: {
-    minHeight: 58,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 7,
-    borderRadius: 19,
-    backgroundColor: 'rgba(20, 38, 64, 0.98)',
+    padding: 5,
+    borderRadius: 15,
+    backgroundColor: '#142A47',
     borderWidth: 1,
-    borderColor: 'rgba(87, 129, 189, 0.34)',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
+    borderColor: 'rgba(91,143,214,0.44)',
   },
-  aiComposerCompact: {
-    minHeight: 52,
-    padding: 6,
-  },
-  aiComposerGlow: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    right: -82,
-    top: -77,
-    backgroundColor: 'rgba(91, 66, 255, 0.14)',
-  },
-  aiAvatar: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
+  aiComposerIcon: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6347F5',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.13)',
+    borderRadius: 11,
+    backgroundColor: '#6647F4',
   },
   aiInput: {
     flex: 1,
-    minHeight: 40,
-    color: '#F4F6FC',
-    fontSize: 13,
-    paddingHorizontal: 3,
+    minWidth: 0,
+    height: 38,
+    paddingHorizontal: 1,
     paddingVertical: 0,
+    color: '#F4F7FF',
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
   },
-  sendButton: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
+  aiSendButton: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2769CF',
-    borderWidth: 1,
-    borderColor: 'rgba(116, 173, 255, 0.30)',
+    borderRadius: 11,
+    backgroundColor: '#2E67BF',
   },
-  sendButtonPressed: {
-    opacity: 0.78,
-    transform: [{ scale: 0.96 }],
-  },
+
   pressed: {
-    opacity: 0.80,
-    transform: [{ scale: 0.987 }],
+    opacity: 0.84,
+    transform: [{ scale: 0.985 }],
+  },
+  pressedReducedMotion: {
+    opacity: 0.84,
+  },
+  disabled: {
+    opacity: 0.6,
   },
   inlineError: {
-    ...typography.caption,
     color: colors.error,
+    fontFamily: fonts.regular,
+    fontSize: 9.5,
+    lineHeight: 12,
     textAlign: 'center',
-    fontSize: 10,
   },
 })
