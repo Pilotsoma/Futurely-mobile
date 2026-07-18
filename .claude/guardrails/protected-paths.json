@@ -1,0 +1,17 @@
+{
+  "_comment": "Glob patterns (relative to project root, ** and * and ? supported). Any Edit/Write matching one of these is DENIED outright by .claude/hooks/guard-protected-paths.js, no matter what the current task scope says. Edit this list by hand when you genuinely need to change one of these paths.",
+  "protected": [
+    ".env",
+    ".env.*",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.p12",
+    "**/*.mobileprovision",
+    "**/*.jks",
+    "package-lock.json",
+    ".git/**",
+    ".claude/settings.json",
+    ".claude/hooks/**",
+    ".claude/guardrails/protected-paths.json"
+  ]
+}
