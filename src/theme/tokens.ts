@@ -1,4 +1,4 @@
-// Dark theme only — nextstep-mobile/app.json hardcodes "userInterfaceStyle": "dark",
+// Dark theme only — app.json hardcodes "userInterfaceStyle": "dark",
 // so a light theme driven by useColorScheme would never activate. Plain constants,
 // no provider/context needed.
 

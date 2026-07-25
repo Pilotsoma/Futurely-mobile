@@ -1,0 +1,880 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
+}
+
+enum AccountStatus {
+  ACTIVE
+  DOB_MISMATCH_LOCKED
+  UNDER_13_BANNED
+}
+
+model User {
+  id                          Int                             @id @default(autoincrement())
+  email                       String                          @unique
+  passwordHash                String?
+  name                        String?                         @unique
+  hacName                     String?
+  tag                         String                          @default("Student")
+  tagColor                    String?                         @default("grey")
+  allTags                     Json                            @default("[]")
+  coins                       Int                             @default(0)
+  lastCoinClaim               DateTime?
+  lastFreeSpin                DateTime?
+  nameColor                   String?
+  avatarEffect                String?
+  badge                       String?
+  avatarUrl                   String?
+  ownedNameColors             Json                            @default("[]")
+  ownedAvatarEffects          Json                            @default("[]")
+  role                        String                          @default("STUDENT")
+  chatBanned                  Boolean                         @default(false)
+  chatMutedUntil              DateTime?
+  failedLoginAttempts         Int                             @default(0)
+  lockedUntil                 DateTime?
+  deletedAt                   DateTime?
+  emailVerified               Boolean                         @default(false)
+  emailVerificationToken      String?                         @unique
+  emailVerificationExpiry     DateTime?
+  lastSeenAt                  DateTime?
+  loginStreak                 Int                             @default(0)
+  marketplaceAccess           Boolean                         @default(false)
+  marketplaceBanned           Boolean                         @default(false)
+  tosAcceptedAt               DateTime?
+  privacyAcceptedAt           DateTime?
+  ageConfirmedAt              DateTime?
+  createdAt                   DateTime                        @default(now())
+  updatedAt                   DateTime                        @updatedAt
+  assignments                 Assignment[]
+  comments                    Comment[]
+  courses                     Course[]
+  following                   Follow[]                        @relation("Follower")
+  followers                   Follow[]                        @relation("Following")
+  Grade                       Grade[]
+  likes                       Like[]
+  commentLikes                CommentLike[]
+  giveawayEntries             GiveawayEntry[]
+  parentLinks                 ParentStudentLink[]             @relation("ParentLinks")
+  studentLinks                ParentStudentLink[]             @relation("StudentLinks")
+  posts                       Post[]
+  giveawayWins                Post[]                          @relation("GiveawayWinner")
+  schoolConnection            SchoolConnection?
+  StudentProfile              StudentProfile?
+  profile                     Profile?
+  notificationsReceived       Notification[]                  @relation("NotifRecipient")
+  notificationsSent           Notification[]                  @relation("NotifSender")
+  collegeList                 CollegeListItem[]
+  parentPortalConnections     ParentPortalConnection[]
+  tradesSent                  TradeOffer[]                    @relation("TradesSent")
+  tradesReceived              TradeOffer[]                    @relation("TradesReceived")
+  marketplaceListings         MarketplaceListing[]            @relation("ListingsSold")
+  listingsPurchased           MarketplaceListing[]            @relation("ListingsBought")
+  canvasConnections           CanvasConnection[]
+  refreshTokens               RefreshToken[]
+  passwordResetTokens         PasswordResetToken[]
+  oauthAccounts               OAuthAccount[]
+  educatorRoleRequest         EducatorRoleRequest?            @relation("EducatorRoleRequestUser")
+  educatorRoleRequestReview   EducatorRoleRequest[]           @relation("EducatorRoleRequestReviewer")
+  classroomsAsEducator        Classroom[]                     @relation("ClassroomEducator")
+  classroomMemberships        ClassroomMembership[]           @relation("StudentMemberships")
+  educatorAssignmentsCreated  EducatorAssignment[]            @relation("EducatorAssignmentCreator")
+  coinGrantsGiven             EducatorCoinGrant[]             @relation("CoinGrantEducator")
+  coinGrantsReceived          EducatorCoinGrant[]             @relation("CoinGrantStudent")
+  counselorLinks              CounselorStudentLink[]          @relation("CounselorLinks")
+  counseledBy                 CounselorStudentLink[]          @relation("CounseledStudents")
+  counselorRecommendations    CounselorCourseRecommendation[] @relation("CounselorRecommendations")
+  recommendationsReceived     CounselorCourseRecommendation[] @relation("StudentRecommendations")
+  counselorNotes              CounselorNote[]                 @relation("CounselorNotes")
+  notesReceived               CounselorNote[]                 @relation("StudentNotes")
+  counselorActionItems        CounselorActionItem[]           @relation("CounselorActionItems")
+  actionItemsReceived         CounselorActionItem[]           @relation("StudentActionItems")
+  counselorCourseComments     CounselorCourseComment[]        @relation("CounselorCourseComments")
+  courseCommentsReceived      CounselorCourseComment[]        @relation("StudentCourseComments")
+  counselorChatsSent          CounselorChatMessage[]          @relation("CounselorChatCounselor")
+  counselorChatsReceived      CounselorChatMessage[]          @relation("CounselorChatStudent")
+  counselorChatMessagesSent   CounselorChatMessage[]          @relation("CounselorChatSender")
+  classroomPostsAuthored      ClassroomPost[]                 @relation("ClassroomPostAuthor")
+  questionSetsCreated         QuestionSet[]                   @relation("QuestionSetCreator")
+  gameSessionsHosted          GameSession[]                   @relation("GameSessionHost")
+  gameParticipations          GameParticipant[]               @relation("GameParticipants")
+  traderSellCount             Int                             @default(0)
+  traderSellDate              String                          @default("")
+  traderBuyCount              Int                             @default(0)
+  traderBuyDate               String                          @default("")
+  traderTradeCount            Int                             @default(0)
+  traderTradeDate             String                          @default("")
+  spinCoinsSpent              Int                             @default(0)
+  spinTotalSpins              Int                             @default(0)
+  spinCommon                  Int                             @default(0)
+  spinUncommon                Int                             @default(0)
+  spinRare                    Int                             @default(0)
+  spinEpic                    Int                             @default(0)
+  spinLegendary               Int                             @default(0)
+  spinMythic                  Int                             @default(0)
+  spinCurse                   Int                             @default(0)
+  // ── COPPA / agentic-consent fields ──────────────────────────────────────────
+  // dateOfBirth and coppaParentEmail are encrypted at rest via AES-256-GCM
+  // using the same CREDENTIAL_ENCRYPTION_KEY as school credentials.
+  dateOfBirth                 String?
+  coppaConsentStatus          String                          @default("NOT_REQUIRED")
+  coppaConsentTimestamp       DateTime?
+  coppaParentEmail            String?
+  autonomousConsentAcceptedAt DateTime?
+  agentSessions               AgentSession[]
+  agentWriteRateLimits        AgentWriteRateLimit[]
+  autonomousAgentJobs         AutonomousAgentJob[]
+  aiChatSessions               AiChatSession[]
+  // ── DOB verification against HAC (school portal) record ──────────────────────
+  // hacDateOfBirth is encrypted at rest the same way as dateOfBirth (AES-256-GCM,
+  // CREDENTIAL_ENCRYPTION_KEY). Populated from the school's official record during
+  // a HAC sync and compared against the self-reported dateOfBirth from signup.
+  accountStatus               AccountStatus                   @default(ACTIVE)
+  hacDateOfBirth              String?
+  bannedUntilDate             DateTime?
+  dobCorrectionAttempts       Int                             @default(0)
+}
+
+model OAuthAccount {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  provider   String
+  providerId String
+  email      String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model EmailOTP {
+  id        Int       @id @default(autoincrement())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Profile {
+  id             Int     @id @default(autoincrement())
+  userId         Int     @unique
+  gradeLevel     Int     @default(9)
+  graduationYear Int?
+  weightedGpa    Float   @default(0)
+  unweightedGpa  Float   @default(0)
+  futureDecision String?
+  satScore       Int?
+  actScore       Int?
+  counselorName  String?
+  // Baseline GPA values from the last nightly check-in notification (not the
+  // same as weightedGpa/unweightedGpa above, which is the live current value).
+  // Null means "never checked in yet" — distinct from an actual 0.0 GPA.
+  lastGpaCheckinWeighted   Float?
+  lastGpaCheckinUnweighted Float?
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  fromUserId Int
+  type       String
+  postId     Int?
+  preview    String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  recipient  User     @relation("NotifRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender     User     @relation("NotifSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+}
+
+model Course {
+  id                Int                      @id @default(autoincrement())
+  userId            Int
+  name              String
+  teacher           String
+  period            Int
+  semester          String
+  courseType        String                   @default("STANDARD")
+  creditHours       Float                    @default(1.0)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grades            Grade[]
+  counselorComments CounselorCourseComment[]
+}
+
+model Grade {
+  id            Int      @id @default(autoincrement())
+  courseId      Int
+  userId        Int
+  letterGrade   String
+  percentage    Float
+  gradingPeriod String   @default("CURRENT")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  User          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id               Int       @id @default(autoincrement())
+  userId           Int
+  title            String
+  subject          String
+  startDate        DateTime?
+  dueDate          DateTime
+  dueTime          String?
+  estimatedMinutes Int?      @default(0)
+  completed        Boolean   @default(false)
+  completedAt      DateTime?
+  source           String    @default("SEED")
+  priority         String?
+  reminderSentAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, title, subject], name: "userId_title_subject")
+  @@index([userId, completed])
+  @@index([userId, dueDate])
+}
+
+model Post {
+  id                 Int             @id @default(autoincrement())
+  userId             Int
+  body               String
+  type               String          @default("NORMAL")
+  giveawayTag        String?
+  giveawayTagColor   String?
+  giveawayCoinAmount Int?
+  giveawayEndsAt     DateTime?
+  giveawayWinnerId   Int?
+  giveawayItemType   String?
+  giveawayItemId     String?
+  giveawayItemRarity String?
+  unboxItemType      String?
+  unboxItemId        String?
+  unboxItemName      String?
+  unboxItemValue     String?
+  unboxItemRarity    String?
+  unboxItemEstValue  Int?
+  unboxItemTagColor  String?
+  network            String          @default("global")
+  isdCode            String?
+  pinnedUntil        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  comments           Comment[]
+  likes              Like[]
+  giveawayEntries    GiveawayEntry[]
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  giveawayWinner     User?           @relation("GiveawayWinner", fields: [giveawayWinnerId], references: [id])
+}
+
+model Comment {
+  id           Int           @id @default(autoincrement())
+  postId       Int
+  userId       Int
+  body         String
+  createdAt    DateTime      @default(now())
+  commentLikes CommentLike[]
+  post         Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id     Int  @id @default(autoincrement())
+  postId Int
+  userId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  commentId Int
+  userId    Int
+  createdAt DateTime @default(now())
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+}
+
+model GiveawayEntry {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model SchoolConnection {
+  id                      Int       @id @default(autoincrement())
+  userId                  Int       @unique
+  systemType              String
+  districtUrl             String
+  hacUsername             String?
+  encryptedPassword       String?
+  cachedSession           String?
+  hacDataCache            Json?
+  lastSynced              DateTime?
+  syncStatus              String?
+  syncError               String?
+  consecutiveSyncFailures Int       @default(0)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([systemType, districtUrl, hacUsername])
+}
+
+model ParentStudentLink {
+  id        Int      @id @default(autoincrement())
+  parentId  Int
+  studentId Int
+  createdAt DateTime @default(now())
+  parent    User     @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student   User     @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+model ParentPortalConnection {
+  id                   Int       @id @default(autoincrement())
+  parentId             Int
+  systemType           String
+  districtUrl          String
+  hacUsername          String
+  hacPasswordEncrypted String?
+  studentName          String?
+  gradeLevel           Int?
+  graduationYear       Int?
+  cachedData           String?
+  lastSynced           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  parent               User      @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, hacUsername, districtUrl], name: "parentId_hacUsername_districtUrl")
+}
+
+model ComplianceAuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  resourceType String
+  resourceId   String?
+  action       String
+  ipAddress    String
+  timestamp    DateTime @default(now())
+
+  @@index([userId, timestamp])
+}
+
+model StudentProfile {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  studentId      String   @unique
+  gradeLevel     Int
+  graduationYear Int
+  futureDecision String?
+  satScore       Int?
+  actScore       Float?
+  counselorName  String?
+  weightedGpa    Float    @default(0.0)
+  unweightedGpa  Float    @default(0.0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  User           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TradeOffer {
+  id            Int      @id @default(autoincrement())
+  senderId      Int
+  receiverId    Int
+  senderItems   Json
+  receiverItems Json
+  status        String   @default("PENDING")
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sender        User     @relation("TradesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver      User     @relation("TradesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+model MarketplaceListing {
+  id             Int      @id @default(autoincrement())
+  sellerId       Int
+  itemType       String
+  itemId         String
+  itemName       String
+  itemValue      String
+  itemRarity     String
+  itemRarityRank Int      @default(0)
+  price          Int
+  status         String   @default("ACTIVE")
+  buyerId        Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  seller         User     @relation("ListingsSold", fields: [sellerId], references: [id], onDelete: Cascade)
+  buyer          User?    @relation("ListingsBought", fields: [buyerId], references: [id])
+}
+
+model CollegeScorecardCache {
+  id               Int               @id @default(autoincrement())
+  unitId           String            @unique
+  name             String
+  city             String?
+  state            String?
+  admissionRate    Float?
+  sat25th          Int?
+  sat75th          Int?
+  enrollment       Int?
+  fetchedAt        DateTime          @default(now())
+  collegeListItems CollegeListItem[]
+
+  @@index([name])
+}
+
+model CollegeListItem {
+  id              Int                    @id @default(autoincrement())
+  userId          Int
+  name            String
+  scorecardUnitId String?
+  createdAt       DateTime               @default(now())
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scorecardData   CollegeScorecardCache? @relation(fields: [scorecardUnitId], references: [unitId])
+  insightsCache   CollegeInsightsCache?
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model CollegeInsightsCache {
+  id                Int      @id @default(autoincrement())
+  collegeListItemId Int      @unique
+  userId            Int
+  inputHash         String   @db.Char(64)
+  narrativeSummary  String   @db.Text
+  actionableSteps   Json
+  generatedAt       DateTime @default(now())
+
+  collegeListItem CollegeListItem @relation(fields: [collegeListItemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ItemPrice {
+  id       Int    @id @default(autoincrement())
+  itemType String
+  itemId   String
+  price    Int
+
+  @@unique([itemType, itemId])
+}
+
+model CanvasConnection {
+  id                      Int       @id @default(autoincrement())
+  userId                  Int
+  canvasInstanceUrl       String
+  encryptedToken          String
+  canvasUserId            String?
+  canvasUserName          String?
+  lastSynced              DateTime?
+  syncStatus              String?
+  syncError               String?
+  tokenInvalid            Boolean   @default(false)
+  consecutiveSyncFailures Int       @default(0)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, canvasInstanceUrl])
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EducatorRoleRequest {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @unique
+  requestedRole String
+  institution   String
+  status        String    @default("PENDING")
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation("EducatorRoleRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?     @relation("EducatorRoleRequestReviewer", fields: [reviewedBy], references: [id])
+}
+
+model Classroom {
+  id          Int                   @id @default(autoincrement())
+  educatorId  Int
+  name        String
+  inviteCode  String                @unique
+  description String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  educator    User                  @relation("ClassroomEducator", fields: [educatorId], references: [id], onDelete: Cascade)
+  memberships ClassroomMembership[]
+  assignments EducatorAssignment[]
+  posts       ClassroomPost[]
+}
+
+model ClassroomMembership {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  studentId   Int
+  joinedAt    DateTime  @default(now())
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student     User      @relation("StudentMemberships", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classroomId, studentId])
+  @@index([studentId])
+}
+
+model EducatorAssignment {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  creatorId   Int
+  title       String
+  description String?
+  subject     String
+  dueDate     DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  creator     User      @relation("EducatorAssignmentCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+model ClassroomPost {
+  id          Int       @id @default(autoincrement())
+  classroomId Int
+  authorId    Int
+  body        String
+  createdAt   DateTime  @default(now())
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  author      User      @relation("ClassroomPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model EducatorCoinGrant {
+  id         Int      @id @default(autoincrement())
+  educatorId Int
+  studentId  Int
+  coins      Int
+  grantDate  String
+  createdAt  DateTime @default(now())
+  educator   User     @relation("CoinGrantEducator", fields: [educatorId], references: [id], onDelete: Cascade)
+  student    User     @relation("CoinGrantStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, grantDate])
+  @@index([educatorId])
+}
+
+model CounselorStudentLink {
+  id                  Int       @id @default(autoincrement())
+  counselorId         Int
+  studentId           Int
+  status              String    @default("PENDING")
+  createdAt           DateTime  @default(now())
+  counselorLastReadAt DateTime?
+  counselor           User      @relation("CounselorLinks", fields: [counselorId], references: [id], onDelete: Cascade)
+  student             User      @relation("CounseledStudents", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([counselorId, studentId])
+  @@index([studentId])
+  @@index([studentId, status])
+}
+
+model CounselorCourseRecommendation {
+  id          Int      @id @default(autoincrement())
+  counselorId Int
+  studentId   Int
+  courseName  String
+  courseCode  String?
+  rationale   String?
+  semester    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  counselor   User     @relation("CounselorRecommendations", fields: [counselorId], references: [id], onDelete: Cascade)
+  student     User     @relation("StudentRecommendations", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model CounselorNote {
+  id          Int      @id @default(autoincrement())
+  counselorId Int
+  studentId   Int
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  counselor   User     @relation("CounselorNotes", fields: [counselorId], references: [id], onDelete: Cascade)
+  student     User     @relation("StudentNotes", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model CounselorActionItem {
+  id          Int       @id @default(autoincrement())
+  counselorId Int
+  studentId   Int
+  title       String
+  description String?
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  counselor   User      @relation("CounselorActionItems", fields: [counselorId], references: [id], onDelete: Cascade)
+  student     User      @relation("StudentActionItems", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, completed])
+}
+
+model CounselorCourseComment {
+  id          Int      @id @default(autoincrement())
+  counselorId Int
+  studentId   Int
+  courseId    Int
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  counselor   User     @relation("CounselorCourseComments", fields: [counselorId], references: [id], onDelete: Cascade)
+  student     User     @relation("StudentCourseComments", fields: [studentId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@index([studentId])
+}
+
+model CounselorChatMessage {
+  id          Int      @id @default(autoincrement())
+  counselorId Int
+  studentId   Int
+  senderId    Int?
+  body        String
+  createdAt   DateTime @default(now())
+  counselor   User     @relation("CounselorChatCounselor", fields: [counselorId], references: [id], onDelete: Cascade)
+  student     User     @relation("CounselorChatStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  sender      User?    @relation("CounselorChatSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([counselorId, studentId, createdAt])
+}
+
+// ── Review Game ──────────────────────────────────────────────────────────────
+
+model QuestionSet {
+  id          Int           @id @default(autoincrement())
+  creatorId   Int
+  title       String
+  description String?
+  subject     String?
+  visibility  String        @default("PRIVATE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  creator     User          @relation("QuestionSetCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  sessions    GameSession[]
+
+  @@index([creatorId])
+  @@index([visibility])
+}
+
+model Question {
+  id            Int          @id @default(autoincrement())
+  setId         Int
+  orderIndex    Int          @default(0)
+  questionText  String
+  questionType  String       @default("MULTIPLE_CHOICE")
+  options       Json
+  correctAnswer String
+  timeLimit     Int          @default(20)
+  set           QuestionSet  @relation(fields: [setId], references: [id], onDelete: Cascade)
+  answers       GameAnswer[]
+
+  @@index([setId, orderIndex])
+}
+
+model GameSession {
+  id              Int               @id @default(autoincrement())
+  setId           Int
+  hostId          Int
+  joinCode        String            @unique
+  status          String            @default("WAITING")
+  type            String            @default("QUIZ")
+  currentQuestion Int               @default(0)
+  createdAt       DateTime          @default(now())
+  set             QuestionSet       @relation(fields: [setId], references: [id])
+  host            User              @relation("GameSessionHost", fields: [hostId], references: [id], onDelete: Cascade)
+  participants    GameParticipant[]
+  answers         GameAnswer[]
+
+  @@index([hostId])
+  @@index([status])
+}
+
+model GameParticipant {
+  id        Int          @id @default(autoincrement())
+  sessionId Int
+  userId    Int
+  score     Int          @default(0)
+  joinedAt  DateTime     @default(now())
+  session   GameSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User         @relation("GameParticipants", fields: [userId], references: [id], onDelete: Cascade)
+  answers   GameAnswer[]
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+}
+
+model GameAnswer {
+  id            Int             @id @default(autoincrement())
+  sessionId     Int
+  participantId Int
+  questionId    Int
+  answer        String
+  isCorrect     Boolean
+  timeMs        Int             @default(0)
+  createdAt     DateTime        @default(now())
+  session       GameSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participant   GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  question      Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, questionId])
+  @@index([sessionId, questionId])
+}
+
+// ── Agentic AI models ─────────────────────────────────────────────────────────
+
+model AgentSession {
+  id              Int                 @id @default(autoincrement())
+  userId          Int
+  module          String // PLANNER | GPA | ROADMAP | CHAT
+  trigger         String // USER | SYSTEM
+  status          String // RUNNING | COMPLETED | FAILED | BLOCKED_COPPA
+  toolCallCount   Int                 @default(0)
+  maxToolCalls    Int                 @default(12)
+  userMessage     String?             @db.Text
+  finalResponse   String?             @db.Text
+  autonomousJobId Int?
+  startedAt       DateTime            @default(now())
+  completedAt     DateTime?
+  errorMessage    String?
+  user            User                @relation(fields: [userId], references: [id])
+  toolCalls       AgentToolCall[]
+  autonomousJob   AutonomousAgentJob? @relation(fields: [autonomousJobId], references: [id])
+
+  @@index([userId, module, startedAt])
+  @@index([status, startedAt])
+}
+
+model AgentToolCall {
+  id           Int          @id @default(autoincrement())
+  sessionId    Int
+  toolName     String
+  toolInput    Json
+  toolOutput   Json?
+  status       String // PENDING | SUCCESS | DENIED | FAILED
+  denialReason String? // COPPA_GATE | ALLOWLIST | RATE_LIMIT | ERROR | USER_REJECTED
+  executedAt   DateTime     @default(now())
+  durationMs   Int?
+  session      AgentSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@index([toolName, executedAt])
+}
+
+// Web AI-companion chat, synced to the user's account so it's visible across
+// devices (previously localStorage-only, per-browser). Messages are stored as
+// a JSON array (matches the client's Msg[] shape) rather than a normalized
+// table — a chat session is always read/written as one unit, never queried
+// message-by-message, so a relational table would add joins with no benefit.
+model AiChatSession {
+  id        String   @id
+  userId    Int
+  title     String
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model AgentWriteRateLimit {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  toolName    String
+  windowStart DateTime
+  callCount   Int      @default(0)
+  lastCallAt  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, toolName, windowStart])
+  @@index([userId, toolName])
+}
+
+model AutonomousAgentJob {
+  id            Int            @id @default(autoincrement())
+  userId        Int?
+  module        String
+  triggerType   String // NIGHTLY_GPA_CHECKIN | PROACTIVE_PLANNER_NUDGE | EVENT
+  triggerEvent  String?
+  scheduledAt   DateTime
+  executedAt    DateTime?
+  status        String         @default("PENDING") // PENDING|RUNNING|COMPLETED|FAILED|SKIPPED_FLAG_OFF|SKIPPED_COPPA
+  result        Json?
+  createdAt     DateTime       @default(now())
+  user          User?          @relation(fields: [userId], references: [id])
+  agentSessions AgentSession[]
+
+  @@index([status, scheduledAt])
+  @@index([userId, module])
+}

@@ -1,10 +1,17 @@
 import * as AuthSession from 'expo-auth-session'
 import * as WebBrowser from 'expo-web-browser'
-import { api } from './client'
-import { ApiRequestError } from './client'
+import { api, ApiRequestError } from './client'
 import { API_BASE_URL } from '../constants/api'
 import { clearTokens, loadTokens, storeTokens } from '../utils/storage'
-import type { AuthUser, LoginRequest, MeResponse, RegisterRequest, SendOtpRequest } from '../types/auth'
+import type {
+  AccountStatus,
+  AccountStatusResponse,
+  AuthUser,
+  LoginRequest,
+  MeResponse,
+  RegisterRequest,
+  SendOtpRequest,
+} from '../types/auth'
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -40,6 +47,16 @@ export async function getMe(): Promise<MeResponse> {
   return api.get('/auth/me')
 }
 
+export async function getAccountStatus(): Promise<AccountStatusResponse> {
+  return api.get('/auth/account-status')
+}
+
+export async function updateDateOfBirth(
+  dateOfBirth: string,
+): Promise<{ accountStatus: AccountStatus; bannedUntilDate: string | null }> {
+  return api.patch('/auth/dob', { dateOfBirth })
+}
+
 export async function logout(): Promise<void> {
   const stored = await loadTokens()
   try {
@@ -59,9 +76,11 @@ export async function deleteAccount(password?: string): Promise<void> {
 // Backend's OAuth completion is cookie-based (browser-only) — mobile carries a
 // redirectUri through the signed `state` so the callback hands tokens back via
 // a deep-link redirect instead. See backend/src/routes/auth.ts finishOAuth().
-export async function signInWithGoogle(): Promise<GoogleSignInResult> {
-  const redirectUri = AuthSession.makeRedirectUri()
-  const authUrl = `${API_BASE_URL}/auth/oauth/google?platform=mobile&redirectUri=${encodeURIComponent(redirectUri)}`
+export async function signInWithGoogle(
+  intent: 'login' | 'signup',
+): Promise<GoogleSignInResult> {
+  const redirectUri = AuthSession.makeRedirectUri({ path: 'oauth' })
+  const authUrl = `${API_BASE_URL}/auth/oauth/google?platform=mobile&intent=${intent}&redirectUri=${encodeURIComponent(redirectUri)}`
 
   const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri)
   if (result.type !== 'success' || !result.url) {
@@ -69,16 +88,28 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   }
 
   const parsed = new URL(result.url)
-  if (parsed.searchParams.get('error')) {
-    throw new ApiRequestError('Google sign-in failed. Please try again.', 0, 'OAUTH_FAILED')
+  const params = new URLSearchParams(parsed.search)
+  new URLSearchParams(parsed.hash.replace(/^#/, '')).forEach((value, key) => {
+    params.set(key, value)
+  })
+  const oauthError = params.get('error')
+  if (oauthError) {
+    const needsSignup = oauthError === 'OAUTH_NEEDS_SIGNUP'
+    throw new ApiRequestError(
+      needsSignup
+        ? 'No account exists for that Google address. Choose Sign Up first.'
+        : 'Google sign-in failed. Please try again.',
+      0,
+      oauthError,
+    )
   }
 
-  const token = parsed.searchParams.get('token')
-  const refreshToken = parsed.searchParams.get('refreshToken')
+  const token = params.get('token')
+  const refreshToken = params.get('refreshToken')
   if (!token || !refreshToken) {
     throw new ApiRequestError('Google sign-in failed. Please try again.', 0, 'OAUTH_FAILED')
   }
 
   await storeTokens({ accessToken: token, refreshToken })
-  return { token, refreshToken, isNew: parsed.searchParams.get('isNew') === 'true' }
+  return { token, refreshToken, isNew: params.get('isNew') === 'true' }
 }

@@ -59,7 +59,7 @@ export interface FeedUserProfile {
   badge: string | null
   avatarUrl: string | null
   role: string
-  allTags: Array<{ tag: string; tagColor: string }>
+  allTags: { tag: string; tagColor: string }[]
   totalLikes: number
   isFollowing: boolean
   _count: { followers: number; following: number; posts: number }

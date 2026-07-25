@@ -26,11 +26,11 @@ export interface CanvasConnectResult {
 
 export interface CanvasSyncResult {
   syncedCount: number
-  assignments: Array<{
+  assignments: {
     title: string
     subject: string
     dueDate: string
-  }>
+  }[]
 }
 
 export async function getCanvasStatus(): Promise<CanvasStatus> {

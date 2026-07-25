@@ -8,11 +8,12 @@ Read it completely before doing any work.
 > **This repo was split out of the `Futurely` monorepo**
 > (https://github.com/Pilotsoma/Futurely) on 2026-07-17 via `git subtree split`, so mobile
 > work could proceed independently with full commit history preserved. The main repo still
-> owns the backend API this app calls, the web portal, and the canonical product docs. The
+> still owns the web portal and canonical cross-product docs. The current backend API was
+> recovered into this repository under `backend/` on 2026-07-25 so mobile development can
+> run independently. The
 > `.claude/context/` files here are duplicated copies as of the split date — if they drift
 > from the main repo, treat the main repo as the source of truth and re-sync by hand. This
-> repo has **no server-side code**; see `.claude/context/ARCHITECTURE.md` for how to run a
-> backend locally to develop against.
+> repo now owns its local backend copy; see `.claude/context/ARCHITECTURE.md`.
 
 ---
 
@@ -48,12 +49,9 @@ or clear `in_scope` back to `[]` when the task wraps up.
 > "Quick check before I touch mobile code:
 > - Is the Expo dev server running? (`npx expo start`)
 > - Are you testing on a physical device (Expo Go), iOS Simulator, or Android Emulator?
-> - Does `src/constants/api.ts` `API_BASE_URL` currently point at a host your
->   device/simulator can actually reach? (Physical device → your computer's LAN IP; Android
->   emulator → `10.0.2.2`; iOS simulator → `localhost`.) This is hardcoded per-developer and
->   the most common reason the app can't reach the backend.
-> - Is a Futurely backend actually running and reachable at that address? (Clone
->   https://github.com/Pilotsoma/Futurely and run `backend/` — see this repo's README.)
+> - Is Metro using LAN mode (`npm run app`)? The API URL follows Metro's manifest
+>   hostname automatically; `EXPO_PUBLIC_API_URL` can explicitly override it.
+> - Is the local backend running (`npm run dev`) and is `/health` database-ready?
 > I'll need these to verify changes work."
 
 ---
@@ -122,7 +120,7 @@ NEXT AGENT:
 | QA issues a BLOCK verdict | Stop all work immediately. Invoke `lead-architect`. Do not ship anything. |
 | Any compliance question (COMPLIANCE.md) | Invoke `lead-architect` for a ruling before writing any code |
 | Requirement is ambiguous or unclear | Ask the user to clarify before dispatching any agent |
-| A change requires backend/API work | Flag it — that work happens in the main `Futurely` repo, not here |
+| A change requires backend/API work | Update `backend/` here and note whether the main web repo also needs synchronization |
 | Any secret or credential appears in source code | Invoke `qa-engineer` to BLOCK. Do not commit. |
 | Feature is outside current scope (see ARCHITECTURE.md "Scope note") | Flag it to the user and invoke `lead-architect` to approve scope expansion |
 
@@ -142,12 +140,9 @@ NEXT AGENT:
 
 ## Project-Specific Notes
 
-- This repo has no backend, database, or server code — see `.claude/context/ARCHITECTURE.md`.
-- `Futurely/` (nested inside this repo) is an unrelated Expo starter template with its own
-  `node_modules`, excluded from `tsconfig.json` — don't edit it or treat it as part of this
-  product.
-- No `lint` script or test runner (Jest/Detox/Playwright) is installed in this repo yet.
-  Verify before claiming tests ran.
+- This repo contains the mobile client at root and the API under `backend/`; it
+  intentionally does not contain the web frontend.
+- Expo lint, mobile Jest, backend Jest, and strict TypeScript scripts are installed.
 - `AGENTS.md` documents the pinned Expo SDK version — check it (and `package.json`) before
   assuming any Expo API; don't trust doc links pinned to a different SDK version.
 - A `PreToolUse` hook guards every `Edit`/`Write` against silently touching existing,

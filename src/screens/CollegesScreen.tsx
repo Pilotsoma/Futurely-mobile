@@ -38,7 +38,6 @@ import {
   colors,
   elevation,
   fonts,
-  radii,
   spacing,
 } from '../theme/tokens'
 
