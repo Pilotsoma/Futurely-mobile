@@ -2,7 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { DeviceEventEmitter } from 'react-native'
 import * as authApi from '../api/authApi'
 import * as gradesApi from '../api/gradesApi'
-import { SESSION_EXPIRED_EVENT } from '../api/client'
+import {
+  ACCOUNT_STATUS_CHANGED_EVENT,
+  SESSION_EXPIRED_EVENT,
+} from '../api/client'
 import { clearTokens, loadTokens } from '../utils/storage'
 import type { AuthUser, LoginRequest, RegisterRequest } from '../types/auth'
 
@@ -15,9 +18,10 @@ interface AuthContextValue {
   hasPortalConnection: boolean | null
   signIn: (payload: LoginRequest) => Promise<void>
   register: (payload: RegisterRequest) => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  signInWithGoogle: (intent: 'login' | 'signup') => Promise<void>
   signOut: () => Promise<void>
   deleteAccount: (password?: string) => Promise<void>
+  updateDateOfBirth: (dateOfBirth: string) => Promise<void>
   /** Called by ConnectSchoolScreen after a successful login+sync, to skip re-querying status. */
   markPortalConnected: () => void
 }
@@ -41,6 +45,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     }
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const me = await authApi.getMe()
+    setUser(me)
+    if (me.accountStatus === 'ACTIVE') {
+      await checkPortalStatus()
+    } else {
+      setHasPortalConnection(null)
+    }
+  }, [checkPortalStatus])
+
   useEffect(() => {
     let cancelled = false
 
@@ -57,7 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
         if (cancelled) return
         setUser(me)
         setStatus('authenticated')
-        void checkPortalStatus()
+        if (me.accountStatus === 'ACTIVE') {
+          void checkPortalStatus()
+        }
       } catch {
         // Covers both a dead/expired session and a storage-layer read failure —
         // either way there's no usable session, so fail safe to the login screen
@@ -86,12 +102,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     return () => subscription.remove()
   }, [])
 
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      ACCOUNT_STATUS_CHANGED_EVENT,
+      () => {
+        void refreshUser().catch(() => undefined)
+      },
+    )
+    return () => subscription.remove()
+  }, [refreshUser])
+
   const signIn = useCallback(
     async (payload: LoginRequest) => {
       const result = await authApi.login(payload)
       setUser(result.user)
       setStatus('authenticated')
-      void checkPortalStatus()
+      if (result.user.accountStatus === 'ACTIVE') {
+        void checkPortalStatus()
+      }
     },
     [checkPortalStatus],
   )
@@ -103,19 +131,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       const result = await authApi.register(payload)
       setUser(result.user)
       setStatus('authenticated')
-      void checkPortalStatus()
+      if (result.user.accountStatus === 'ACTIVE') {
+        void checkPortalStatus()
+      }
     },
     [checkPortalStatus],
   )
 
-  const signInWithGoogle = useCallback(async () => {
-    await authApi.signInWithGoogle()
+  const signInWithGoogle = useCallback(async (intent: 'login' | 'signup') => {
+    await authApi.signInWithGoogle(intent)
     // The OAuth callback only returns tokens, not a user object (unlike login/register) — fetch it.
     const me = await authApi.getMe()
     setUser(me)
     setStatus('authenticated')
-    void checkPortalStatus()
+    if (me.accountStatus === 'ACTIVE') {
+      void checkPortalStatus()
+    }
   }, [checkPortalStatus])
+
+  const updateDateOfBirth = useCallback(
+    async (dateOfBirth: string) => {
+      await authApi.updateDateOfBirth(dateOfBirth)
+      await refreshUser()
+    },
+    [refreshUser],
+  )
 
   const signOut = useCallback(async () => {
     await authApi.logout()
@@ -145,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       signInWithGoogle,
       signOut,
       deleteAccount,
+      updateDateOfBirth,
       markPortalConnected,
     }),
     [
@@ -156,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       signInWithGoogle,
       signOut,
       deleteAccount,
+      updateDateOfBirth,
       markPortalConnected,
     ],
   )

@@ -1,0 +1,28 @@
+-- CreateTable
+CREATE TABLE "Course" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "userId" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "teacher" TEXT NOT NULL,
+    "period" INTEGER NOT NULL,
+    "semester" TEXT NOT NULL,
+    "courseType" TEXT NOT NULL DEFAULT 'STANDARD',
+    "creditHours" REAL NOT NULL DEFAULT 1.0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Course_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Grade" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "courseId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "letterGrade" TEXT NOT NULL,
+    "percentage" REAL NOT NULL,
+    "gradingPeriod" TEXT NOT NULL DEFAULT 'CURRENT',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Grade_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Grade_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

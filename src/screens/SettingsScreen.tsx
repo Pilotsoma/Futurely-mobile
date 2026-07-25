@@ -34,7 +34,6 @@ import {
   colors,
   elevation,
   fonts,
-  radii,
   spacing,
 } from '../theme/tokens'
 
@@ -1317,7 +1316,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 allowFontScaling={false}
                 style={styles.supportRowValue}
               >
-                support@nextstep.ai
+                support@myfuturely.ai
               </Text>
             </View>
 

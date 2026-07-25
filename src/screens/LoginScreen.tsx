@@ -18,10 +18,8 @@ import * as authApi from '../api/authApi'
 import { ApiRequestError } from '../api/client'
 import { GoogleLogo } from '../components/ui/GoogleLogo'
 import {
-  colors,
   elevation,
   fonts,
-  radii,
   spacing,
 } from '../theme/tokens'
 
@@ -31,10 +29,10 @@ type FeatherName = React.ComponentProps<typeof Feather>['name']
 
 const APP_LOGO = require('../../assets/logo.png')
 
-const REGISTER_STEPS: Array<{
+const REGISTER_STEPS: {
   key: RegisterStep
   label: string
-}> = [
+}[] = [
   { key: 'dob', label: 'Age' },
   { key: 'account', label: 'Account' },
   { key: 'terms', label: 'Finish' },
@@ -344,7 +342,7 @@ export default function LoginScreen(): React.JSX.Element {
     setGoogleLoading(true)
 
     try {
-      await signInWithGoogle()
+      await signInWithGoogle(mode === 'login' ? 'login' : 'signup')
     } catch (error) {
       if (
         error instanceof ApiRequestError &&
@@ -440,6 +438,9 @@ export default function LoginScreen(): React.JSX.Element {
         name: name.trim() || undefined,
         otp: otp.trim(),
         dateOfBirth,
+        agreedTos: true,
+        agreedPrivacy: true,
+        agreedAge: true,
       })
     } catch (error) {
       if (error instanceof ApiRequestError) {

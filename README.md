@@ -1,52 +1,85 @@
 # Futurely Mobile
 
-Expo / React Native mobile client for Futurely — an AI-powered academic companion for high
-school students. This app covers the 7 screens in web's visible student navigation
-(Dashboard, Grades, Planner, Study Feed, Colleges, AI Chat, Settings) plus auth/connect-school.
-
-This repo was split out of the main [`Futurely`](https://github.com/Pilotsoma/Futurely)
-monorepo on 2026-07-17 so mobile work could proceed independently. **It has no backend of
-its own** — it's a pure client that calls the Futurely API over HTTP. See
-`.claude/context/ARCHITECTURE.md` for details.
+Standalone Expo SDK 54 mobile client plus the Express/Prisma API it develops
+against. The mobile and web applications remain separate; this repository does
+not contain the web frontend.
 
 ## Prerequisites
-- Node.js 18+
-- Expo Go app on your phone (or an iOS Simulator / Android Emulator)
-- The [main `Futurely` repo](https://github.com/Pilotsoma/Futurely)'s backend running
-  somewhere reachable — this app has nothing to talk to without it.
 
-## Quick Start
+- Node.js 20.19 or newer
+- npm
+- Expo Go on a physical phone
+- A PostgreSQL/Neon database URL for a fully functional local API
 
-### 1. Start the backend (from the main repo)
+## First-time setup
+
 ```bash
-git clone https://github.com/Pilotsoma/Futurely
-cd Futurely/backend
-npm install
+npm ci
+npm run backend:install
+```
+
+Copy `backend/.env.example` to `backend/.env`, then set at minimum:
+
+- `DATABASE_URL` to a PostgreSQL connection string
+- `JWT_SECRET` to a random 32-byte secret
+- `CREDENTIAL_ENCRYPTION_KEY` to a random 32-byte hex key
+
+The backend deliberately refuses insecure production secrets. In local
+development only, credential encryption can derive a stable key from
+`JWT_SECRET` when `CREDENTIAL_ENCRYPTION_KEY` is absent.
+
+## Run on Expo Go
+
+Open two terminals at the repository root:
+
+```bash
+# Terminal 1: API on port 3001
 npm run dev
+
+# Terminal 2: Metro on the LAN
+npm run app
 ```
-Server runs at http://localhost:3001 by default.
 
-### 2. Start this app
-```bash
-npm install
-npx expo start
+Scan Metro's QR code in Expo Go. The phone and computer must be on the same
+network, and the firewall must allow Node.js on private networks.
+
+The app reads Metro's manifest hostname and automatically calls the same
+computer on port 3001. There is no per-developer IP address to edit. To use a
+deployed API instead, set `EXPO_PUBLIC_API_URL` before starting Expo:
+
+```powershell
+$env:EXPO_PUBLIC_API_URL = 'https://myfuturely.ai/api'
+npm run app
 ```
-Scan the QR code with Expo Go on your phone.
 
-Update `src/constants/api.ts`'s `API_BASE_URL` to point at a host your device/simulator can
-actually reach:
-- iOS Simulator / `expo start --web` → `http://localhost:3001` (default)
-- Physical device via Expo Go → your computer's LAN IP
-- Android Emulator → `http://10.0.2.2:3001`
+`npm run app` is the intended command; `npx expo start --lan` is equivalent.
 
-This is hardcoded per-developer and the most common reason the app can't reach the backend.
+## Useful commands
 
-## Project structure
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local backend with reload |
+| `npm run app` | Start Expo/Metro in LAN mode |
+| `npm run typecheck` | Strict-check the mobile client |
+| `npm run lint` | Run Expo's ESLint configuration |
+| `npm test` | Run mobile Jest tests |
+| `npm run backend:test` | Run all backend Jest tests |
+| `npm run backend:build` | Generate Prisma Client and compile the API |
+| `npm run check` | Run the complete local verification suite |
 
-See `.claude/context/ARCHITECTURE.md` for the full layout, navigation structure, state
-management approach, and API client details.
+The API health endpoint is `http://localhost:3001/health`. A `503` with
+`"db":"unreachable"` means the server is running but `DATABASE_URL` is missing,
+obsolete, or unreachable.
 
-## Not part of this product
+## Repository layout
 
-`Futurely/` (nested inside this repo) is an unrelated Expo starter template with its own
-`node_modules`, excluded from `tsconfig.json`. Don't edit it or treat it as part of this app.
+```text
+App.tsx, index.ts       Expo entrypoints
+src/                    Mobile screens, navigation, state, API client, and UI
+backend/                Express API, Prisma schema/migrations, and backend tests
+assets/                 Mobile application assets
+```
+
+`EXPO_PUBLIC_*` values are embedded in the client bundle and must never contain
+secrets. Database, JWT, OAuth-client-secret, email, and AI credentials belong
+only in `backend/.env` or the deployment's secret store.

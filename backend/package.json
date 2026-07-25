@@ -1,0 +1,73 @@
+{
+  "name": "futurely-backend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "api/index.ts",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "prisma generate && tsc",
+    "test": "jest",
+    "postinstall": "prisma generate",
+    "start": "prisma migrate deploy && node dist/src/index.js",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force && prisma db seed",
+    "seed:students": "ts-node --transpile-only prisma/seedStudents.ts",
+    "demo:students": "ts-node --transpile-only scripts/listDemoStudents.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@neondatabase/serverless": "^0.9.0",
+    "@prisma/adapter-neon": "5.22.0",
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "@types/ws": "^8.18.1",
+    "@vercel/functions": "^1.6.0",
+    "axios": "^1.16.1",
+    "axios-cookiejar-support": "^5.0.5",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.6.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.15.5",
+    "nodemailer": "^9.0.1",
+    "openai": "^6.43.0",
+    "tough-cookie": "^4.1.4",
+    "undici": "^6.28.0",
+    "ws": "^8.21.0",
+    "zod": "^3.25.76"
+  },
+  "overrides": {
+    "form-data": ">=4.0.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.19.43",
+    "@types/nodemailer": "^8.0.1",
+    "@types/supertest": "^7.2.0",
+    "@types/tough-cookie": "^4.0.5",
+    "jest": "^29.7.0",
+    "prisma": "^5.22.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2"
+  }
+}

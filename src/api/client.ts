@@ -1,4 +1,4 @@
-import { DeviceEventEmitter } from 'react-native'
+import { DeviceEventEmitter, Platform } from 'react-native'
 import { API_BASE_URL, CRUD_TIMEOUT_MS, isLongRunningEndpoint, LONG_RUNNING_TIMEOUT_MS } from '../constants/api'
 import { clearTokens, loadTokens, storeTokens } from '../utils/storage'
 
@@ -6,6 +6,7 @@ import { clearTokens, loadTokens, storeTokens } from '../utils/storage'
 // back to Login instead of leaving every screen showing a generic "could not load"
 // error with tokens already cleared but no way back short of a manual sign-out.
 export const SESSION_EXPIRED_EVENT = 'futurely.session-expired'
+export const ACCOUNT_STATUS_CHANGED_EVENT = 'futurely.account-status-changed'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
@@ -55,7 +56,8 @@ function extractError(body: unknown): { message: string; code?: string } {
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = new URL(path, API_BASE_URL)
+  const baseUrl = new URL(`${API_BASE_URL.replace(/\/+$/, '')}/`)
+  const url = new URL(path.replace(/^\/+/, ''), baseUrl)
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value))
@@ -78,6 +80,7 @@ async function rawFetch(
       method: opts.method ?? 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'X-Client-Platform': Platform.OS === 'web' ? 'web' : 'mobile',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -171,6 +174,12 @@ export async function requestEnvelope<T, M = undefined>(
   }
 
   const { message, code } = extractError(body)
+  if (
+    res.status === 403 &&
+    (code === 'DOB_VERIFICATION_REQUIRED' || code === 'ACCOUNT_BANNED')
+  ) {
+    DeviceEventEmitter.emit(ACCOUNT_STATUS_CHANGED_EVENT)
+  }
   throw new ApiRequestError(message, res.status, code, body)
 }
 

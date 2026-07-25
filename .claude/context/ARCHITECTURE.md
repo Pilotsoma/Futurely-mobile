@@ -9,28 +9,15 @@ file to decide what patterns to follow, so drift here causes real bugs.
 > file is a duplicate of the "Mobile App" section of the main repo's
 > `.claude/context/ARCHITECTURE.md` as of the split date, adapted so the app is the repo
 > root instead of `nextstep-mobile/`. If it drifts from the main repo's copy, treat the main
-> repo as the source of truth for anything that isn't mobile-specific (e.g. the backend API
-> contract) and re-sync by hand.
+> main repo was the source used to recover the backend API in this standalone
+> repository on 2026-07-25. Changes to the shared API contract must now be kept
+> synchronized deliberately.
 
-## This repo has no server-side code
+## Standalone mobile application and backend
 
-This is a pure Expo/React Native client. It has **no backend, no database, no server
-routes of its own** — every screen talks to the Futurely backend (Express + Prisma +
-Neon Postgres) over HTTP. That backend's source lives in the main repo
-(`Pilotsoma/Futurely`, `backend/`) and is **not** duplicated here — cloning this repo alone
-is not enough to run the full product locally. To develop against a real backend:
-
-```
-git clone https://github.com/Pilotsoma/Futurely
-cd Futurely/backend
-npm install
-npm run dev   # serves the API this app calls
-```
-
-See the main repo's `backend/.env.example` for required env vars, and its
-`.claude/context/ARCHITECTURE.md` "Backend" section for full route/integration details
-(auth, grades sync, AI routes, etc.) — that content is intentionally not duplicated here
-since it isn't something this repo can change.
+The Expo/React Native client is at the repository root. The Express + Prisma +
+Neon/PostgreSQL API is in `backend/`. The web frontend remains in the main
+`Pilotsoma/Futurely` repository and is intentionally not duplicated here.
 
 ## Layout
 
@@ -44,9 +31,8 @@ Futurely-mobile/
 │   ├── context/                # AuthContext (auth/session + portal-connection status)
 │   ├── components/             # UI primitives (src/components/ui/*)
 │   ├── theme/                  # tokens.ts (dark-theme-only design tokens)
-│   └── constants/               # api.ts (hardcoded API_BASE_URL — see gotcha below)
-└── Futurely/                  # ⚠️ Unrelated nested Expo starter template, excluded from
-                                #    tsconfig. Not part of this product. Ignore it.
+│   └── constants/               # api.ts (environment/LAN-aware API URL)
+└── backend/                     # Express API, Prisma schema/migrations, tests
 ```
 
 ## Mobile App
@@ -99,25 +85,22 @@ Futurely-mobile/
   `@react-native-async-storage/async-storage` (`src/utils/storage.ts`). `AuthContext` restores
   the session on launch via `GET /auth/me` (which itself goes through the refresh interceptor).
   No Firebase Auth anywhere in this repo.
-- **API base URL — the #1 mobile dev-environment gotcha:** `src/constants/api.ts` hardcodes
-  `API_BASE_URL` (default `http://localhost:3001`, which works for the `expo start --web`
-  preview loop and iOS Simulator). It is **not** read from an env var. Physical device via Expo
-  Go needs your computer's LAN IP; Android Emulator needs `http://10.0.2.2:3001`. This is a
-  common "why is nothing loading" cause — check this file first when the app can't reach
-  the backend.
+- **API base URL:** `src/constants/api.ts` prefers `EXPO_PUBLIC_API_URL`, uses
+  localhost for web, and otherwise derives the computer hostname from Expo's
+  `hostUri` while changing the port to 3001. A physical Expo Go device therefore
+  follows the QR/Metro LAN address automatically.
 - **Push notifications:** not implemented. No FCM, no `expo-notifications` dependency yet.
-- **Testing:** `@types/jest` is present as a dev dependency, but **no test runner
-  (`jest`, `jest-expo`, Detox, Playwright) is actually installed**. Don't claim tests "pass"
-  without verifying a runner exists.
+- **Testing:** mobile tests use Jest 29 with `jest-expo`; the backend uses Jest
+  29 with `ts-jest`. `npm run check` also runs strict type checking, Expo lint,
+  backend tests, and the backend production build.
 
 ## AI features
 
-AI runs server-side only, in the main repo's `backend/routes/ai.ts` (Claude / OpenRouter /
-Gemini). No LLM API keys ship to this app — the AI Chat screen just calls the backend's AI
-routes like any other endpoint.
+AI runs server-side only in `backend/src/routes/ai.ts`. No LLM API keys ship to
+the app; the AI Chat screen calls the backend like any other endpoint.
 
 ## Environments & Secrets
 
-Mobile has no `.env` — `API_BASE_URL` is a hardcoded constant (see above). All real secrets
-(JWT signing, DB credentials, LLM API keys) live in the main repo's backend deployment
-(Vercel env vars) and are never referenced from this repo.
+Mobile may use a non-secret `EXPO_PUBLIC_API_URL`; Expo embeds it in the client
+bundle. All real secrets (JWT signing, database credentials, OAuth secrets, and
+LLM keys) live in ignored `backend/.env` or the deployment secret store.

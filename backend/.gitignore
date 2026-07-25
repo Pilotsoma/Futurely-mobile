@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+dev.db
+*.db-journal
+!.env.example
+# Debug HTML dumps from HAC scraper — may contain student PII (FERPA)
+src/debug_*.html
