@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { animation, colors, spacing } from '../../theme/tokens'
+import { useDisplayPreferences } from '../../preferences/displayPreferences'
 
 interface ScreenProps {
   children: React.ReactNode
@@ -24,7 +25,9 @@ export function Screen({
   edges = ['left', 'right', 'bottom'],
   style,
 }: ScreenProps): React.JSX.Element {
-  const reduceMotion = useReducedMotion()
+  const systemReduceMotion = useReducedMotion()
+  const { reduceMotion: preferenceReduceMotion } = useDisplayPreferences()
+  const reduceMotion = systemReduceMotion || preferenceReduceMotion
   const progress = useSharedValue(reduceMotion ? 1 : 0)
 
   useEffect(() => {
@@ -44,7 +47,7 @@ export function Screen({
 
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
-      <Animated.View style={[styles.container, padded && styles.padded, animatedStyle, style]}>
+      <Animated.View role="main" style={[styles.container, padded && styles.padded, animatedStyle, style]}>
         {children}
       </Animated.View>
     </SafeAreaView>

@@ -1,6 +1,7 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import type { NavigatorScreenParams } from '@react-navigation/native'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -11,13 +12,14 @@ import StudyFeedScreen from '../screens/StudyFeedScreen'
 import CollegesScreen from '../screens/CollegesScreen'
 import AIChatScreen from '../screens/AIChatScreen'
 import SettingsScreen from '../screens/SettingsScreen'
+import type { GradesStackParamList } from './GradesNavigator'
 import { colors, fonts } from '../theme/tokens'
 
 export type MainTabParamList = {
   Dashboard: undefined
-  Grades: undefined
-  AIChat: undefined
-  Planner: undefined
+  Grades: NavigatorScreenParams<GradesStackParamList> | undefined
+  AIChat: { initialPrompt?: string; requestId?: number } | undefined
+  Planner: { assignmentId?: number } | undefined
   Colleges: undefined
   Settings: undefined
   StudyFeed: undefined

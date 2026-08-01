@@ -10,11 +10,17 @@ import { ErrorRetryBlock } from '../../components/ui/ErrorRetryBlock'
 import { UnsupportedPortalBlock } from '../../components/ui/UnsupportedPortalBlock'
 import { RawDataView } from '../../components/ui/RawDataView'
 import { colors, spacing, typography } from '../../theme/tokens'
+import { useDisplayPreferences, type GradeLetter } from '../../preferences/displayPreferences'
+
+function isGradeLetter(value: string | null | undefined): value is GradeLetter {
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D' || value === 'F'
+}
 
 // Shows the current grading period only — the backend's `availablePeriods`/
 // `currentPeriod` fields are typed `unknown` (upstream-scraped shape), so a
 // period switcher isn't built here rather than guessing an unverified format.
 export default function ClassworkScreen(): React.JSX.Element {
+  const { gradeColors } = useDisplayPreferences()
   const { data, loading, unsupported, error, reload } = usePortalFetch(() => gradesApi.getClasswork())
 
   return (
@@ -31,7 +37,10 @@ export default function ClassworkScreen(): React.JSX.Element {
             <Card key={i} style={styles.classCard}>
               <View style={styles.headerRow}>
                 <Text style={styles.className}>{cls.name ?? 'Unknown class'}</Text>
-                <GradeBadge letter={cls.letterGrade ?? null} />
+                <GradeBadge
+                  letter={cls.letterGrade ?? null}
+                  color={isGradeLetter(cls.letterGrade) ? gradeColors[cls.letterGrade] : undefined}
+                />
                 {cls.average ? <Text style={styles.average}>{cls.average}%</Text> : null}
               </View>
               {cls.categoryWeights ? <RawDataView data={cls.categoryWeights} /> : null}

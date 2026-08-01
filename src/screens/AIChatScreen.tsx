@@ -14,14 +14,17 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { useAuth } from '../context/AuthContext'
 import { sendChatMessage } from '../api/aiApi'
 import * as studentsApi from '../api/studentsApi'
+import { ActionTile } from '../components/ui/ActionTile'
+import { createActionLock } from '../utils/actionLock'
 import type { StudentMe } from '../types/student'
+import type { MainTabParamList } from '../navigation/MainNavigator'
 
 
 interface ChatMessage {
@@ -113,6 +116,7 @@ const PROMPT_ROWS: PromptOption[][] = Array.from(
 )
 
 export default function AIChatScreen(): React.JSX.Element {
+  const route = useRoute<RouteProp<MainTabParamList, 'AIChat'>>()
   const { user } = useAuth()
   const [studentData, setStudentData] = useState<StudentMe | null>(null)
   const [input, setInput] = useState('')
@@ -123,6 +127,8 @@ export default function AIChatScreen(): React.JSX.Element {
   const [history, setHistory] = useState<ChatSession[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const listRef = useRef<FlatList<ChatMessage>>(null)
+  const sendLockRef = useRef(createActionLock())
+  const handledInitialPromptRef = useRef<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -182,7 +188,10 @@ export default function AIChatScreen(): React.JSX.Element {
 
   async function handleSend(textOverride?: string): Promise<void> {
     const text = (textOverride ?? input).trim()
-    if (!text || isSending) return
+    if (!text) return
+
+    const release = sendLockRef.current.tryAcquire()
+    if (!release) return
 
     setInput('')
     setShowChat(true)
@@ -231,10 +240,23 @@ export default function AIChatScreen(): React.JSX.Element {
         return next
       })
     } finally {
+      release()
       setIsSending(false)
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 120)
     }
   }
+
+  useEffect(() => {
+    const initialPrompt = route.params?.initialPrompt?.trim()
+    const promptKey = `${route.params?.requestId ?? 'direct'}:${initialPrompt ?? ''}`
+    if (!initialPrompt || handledInitialPromptRef.current === promptKey) return
+
+    handledInitialPromptRef.current = promptKey
+    void handleSend(initialPrompt)
+    // handleSend intentionally reads the current chat state at the moment a new
+    // route prompt arrives; including it would re-run this effect every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.initialPrompt, route.params?.requestId])
 
   function startNewChat(): void {
     setMessages([])
@@ -256,6 +278,7 @@ export default function AIChatScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
+        role="main"
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
@@ -340,43 +363,18 @@ export default function AIChatScreen(): React.JSX.Element {
               {PROMPT_ROWS.map((row, rowIndex) => (
                 <View key={`prompt-row-${rowIndex}`} style={styles.promptRow}>
                   {row.map((prompt) => (
-                    <View key={prompt.label} style={styles.promptCardShell}>
-                      <Pressable
-                        onPress={() => void handleSend(prompt.prompt)}
-                        style={({ pressed }) => [
-                          styles.promptCardPressable,
-                          pressed && styles.promptCardPressed,
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={prompt.label}
-                      >
-                        <View
-                          pointerEvents="none"
-                          style={[
-                            styles.promptIcon,
-                            {
-                              backgroundColor: prompt.background,
-                              borderColor: `${prompt.color}66`,
-                            },
-                          ]}
-                        >
-                          <Feather name={prompt.icon} size={19} color={prompt.color} />
-                        </View>
-
-                        <Text
-                          pointerEvents="none"
-                          style={styles.promptLabel}
-                          numberOfLines={2}
-                          ellipsizeMode="tail"
-                        >
-                          {prompt.label}
-                        </Text>
-
-                        <View pointerEvents="none" style={styles.promptArrow}>
-                          <Feather name="chevron-right" size={16} color="#8FA2BE" />
-                        </View>
-                      </Pressable>
-                    </View>
+                    <ActionTile
+                      key={prompt.label}
+                      title={prompt.label}
+                      subtitle={prompt.subtitle}
+                      icon={prompt.icon}
+                      color={prompt.color}
+                      iconBackground={prompt.background}
+                      disabled={isSending}
+                      onPress={() => void handleSend(prompt.prompt)}
+                      accessibilityHint={`Start a chat: ${prompt.subtitle}`}
+                      testID={`ai-prompt-${prompt.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    />
                   ))}
                 </View>
               ))}
@@ -872,65 +870,6 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: 11,
   },
-  promptCardShell: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    height: 88,
-    overflow: 'hidden',
-    borderRadius: 17,
-    backgroundColor: '#16243A',
-    borderWidth: 1,
-    borderColor: '#2B4262',
-  },
-  promptCardPressable: {
-    position: 'relative',
-    flex: 1,
-    width: '100%',
-    minWidth: 0,
-  },
-  promptCardPressed: {
-    opacity: 0.88,
-    backgroundColor: '#1D304B',
-  },
-  promptIcon: {
-    position: 'absolute',
-    left: 10,
-    top: 22,
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    zIndex: 2,
-  },
-  promptLabel: {
-    position: 'absolute',
-    left: 64,
-    right: 40,
-    top: 28,
-    color: '#F5F7FF',
-    fontSize: 11.5,
-    lineHeight: 15,
-    fontWeight: '800',
-    letterSpacing: -0.1,
-    zIndex: 3,
-  },
-  promptArrow: {
-    position: 'absolute',
-    right: 8,
-    top: 28,
-    width: 26,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-    backgroundColor: '#0D1726',
-    borderWidth: 1,
-    borderColor: 'rgba(123,151,188,0.25)',
-    zIndex: 2,
-  },
   modalBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -1254,7 +1193,7 @@ const styles = StyleSheet.create({
   },
   composerHint: {
     marginTop: 5,
-    color: '#55657C',
+    color: '#8798B0',
     fontSize: 8.5,
     textAlign: 'center',
   },

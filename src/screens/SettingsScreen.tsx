@@ -25,7 +25,11 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import type { PortalStatus } from '../types/grades'
 import type { StudentMe } from '../types/student'
-import { useDisplayPreferences } from '../preferences/displayPreferences'
+import {
+  DEFAULT_GRADE_COLORS,
+  useDisplayPreferences,
+  type GradeLetter,
+} from '../preferences/displayPreferences'
 import type {
   CanvasConnection,
   CanvasStatus,
@@ -36,6 +40,23 @@ import {
   fonts,
   spacing,
 } from '../theme/tokens'
+
+function confirmDestructiveAction(
+  title: string,
+  message: string,
+  confirmLabel: string,
+  onConfirm: () => void,
+): void {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (window.confirm(`${title}\n\n${message}`)) onConfirm()
+    return
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: confirmLabel, style: 'destructive', onPress: onConfirm },
+  ])
+}
 
 const DISCONNECTED_CANVAS: CanvasStatus = {
   connected: false,
@@ -206,6 +227,7 @@ function FormField({
         {label}
       </Text>
       <TextInput
+        accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -287,6 +309,8 @@ interface SettingRowProps {
   icon: React.ComponentProps<typeof Feather>['name']
   value: boolean
   onValueChange: (value: boolean) => void
+  disabled?: boolean
+  testID?: string
 }
 
 function SettingRow({
@@ -295,6 +319,8 @@ function SettingRow({
   icon,
   value,
   onValueChange,
+  disabled,
+  testID,
 }: SettingRowProps): React.JSX.Element {
   return (
     <View style={styles.settingRow}>
@@ -310,8 +336,12 @@ function SettingRow({
       </View>
 
       <Switch
+        testID={testID}
         value={value}
         onValueChange={onValueChange}
+        disabled={disabled}
+        accessibilityLabel={title}
+        accessibilityState={{ checked: value, disabled }}
         trackColor={{ false: '#263853', true: '#6B42EA' }}
         thumbColor="#FFFFFF"
         ios_backgroundColor="#263853"
@@ -349,9 +379,14 @@ export default function SettingsScreen(): React.JSX.Element {
   const {
     reduceMotion,
     hideGpa,
+    gradeColors,
     setReduceMotion,
     setHideGpa,
+    setGradeColor,
+    resetGradeColors,
   } = useDisplayPreferences()
+  const [preferenceSaving, setPreferenceSaving] = useState(false)
+  const [preferenceMessage, setPreferenceMessage] = useState<string | null>(null)
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
@@ -363,6 +398,32 @@ export default function SettingsScreen(): React.JSX.Element {
     () => getCanvasConnections(canvasStatus),
     [canvasStatus],
   )
+
+  async function saveDisplayPreference(
+    successMessage: string,
+    save: () => Promise<void>,
+  ): Promise<void> {
+    if (preferenceSaving) return
+
+    setPreferenceSaving(true)
+    setPreferenceMessage(null)
+    try {
+      await save()
+      setPreferenceMessage(successMessage)
+    } catch {
+      setPreferenceMessage('Could not save that display preference. Your previous value was restored.')
+    } finally {
+      setPreferenceSaving(false)
+    }
+  }
+
+  function nextGradeColor(letter: GradeLetter): string {
+    const options = ['#22C55E', '#10B981', '#4F8CFF', '#F59E0B', '#F97316', '#EF4444', '#A78BFA']
+    const currentIndex = options.findIndex(
+      (option) => option.toUpperCase() === gradeColors[letter].toUpperCase(),
+    )
+    return options[(currentIndex + 1 + options.length) % options.length]
+  }
 
   const load = useCallback(async () => {
     setError(null)
@@ -470,17 +531,11 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   function confirmPortalDisconnect(): void {
-    Alert.alert(
+    confirmDestructiveAction(
       'Disconnect school portal?',
       'Grades and student information will stop syncing until the portal is connected again.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: () => void handlePortalDisconnect(),
-        },
-      ],
+      'Disconnect',
+      () => void handlePortalDisconnect(),
     )
   }
 
@@ -584,19 +639,13 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   function confirmCanvasDisconnect(connection: CanvasConnection): void {
-    Alert.alert(
+    confirmDestructiveAction(
       'Disconnect Canvas?',
       `${hostname(
         connection.canvasInstanceUrl,
       )} will stop syncing assignments to Planner.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Disconnect',
-          style: 'destructive',
-          onPress: () => void handleCanvasDisconnect(connection),
-        },
-      ],
+      'Disconnect',
+      () => void handleCanvasDisconnect(connection),
     )
   }
 
@@ -623,14 +672,12 @@ export default function SettingsScreen(): React.JSX.Element {
   }
 
   function confirmSignOut(): void {
-    Alert.alert('Sign out?', 'You can sign back in at any time.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => void signOut(),
-      },
-    ])
+    confirmDestructiveAction(
+      'Sign out?',
+      'You can sign back in at any time.',
+      'Sign out',
+      () => void signOut(),
+    )
   }
 
   async function handleDeleteAccount(): Promise<void> {
@@ -1235,8 +1282,13 @@ export default function SettingsScreen(): React.JSX.Element {
               description="Use fewer motion effects on slower devices."
               icon="activity"
               value={reduceMotion}
+              disabled={preferenceSaving}
+              testID="settings-reduce-motion"
               onValueChange={(value) => {
-                void setReduceMotion(value)
+                void saveDisplayPreference(
+                  'Reduce animations preference saved.',
+                  () => setReduceMotion(value),
+                )
               }}
             />
 
@@ -1247,8 +1299,13 @@ export default function SettingsScreen(): React.JSX.Element {
               description="Protect your GPA when someone is looking over your shoulder."
               icon="eye-off"
               value={hideGpa}
+              disabled={preferenceSaving}
+              testID="settings-hide-gpa"
               onValueChange={(value) => {
-                void setHideGpa(value)
+                void saveDisplayPreference(
+                  'GPA privacy preference saved.',
+                  () => setHideGpa(value),
+                )
               }}
             />
 
@@ -1266,35 +1323,94 @@ export default function SettingsScreen(): React.JSX.Element {
                   Grade color coding
                 </Text>
                 <Text style={styles.settingRowDescription}>
-                  The standard A–F palette used throughout Grades.
+                  Tap a grade to choose its next color. Changes apply throughout Grades.
                 </Text>
 
                 <View style={styles.gradePalette}>
-                  {[
-                    ['A', '#22C55E'],
-                    ['B', '#10B981'],
-                    ['C', '#F59E0B'],
-                    ['D', '#F97316'],
-                    ['F', '#EF4444'],
-                  ].map(([grade, color]) => (
-                    <View key={grade} style={styles.gradeSwatchWrap}>
-                      <View
-                        style={[
-                          styles.gradeSwatch,
-                          { backgroundColor: color },
+                  {(Object.keys(gradeColors) as GradeLetter[]).map((grade) => {
+                    const color = gradeColors[grade]
+                    return (
+                      <Pressable
+                        key={grade}
+                        testID={`settings-grade-color-${grade}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Change ${grade} grade color`}
+                        accessibilityHint={`Current color ${color}`}
+                        disabled={preferenceSaving}
+                        onPress={() => {
+                          const next = nextGradeColor(grade)
+                          void saveDisplayPreference(
+                            `${grade} grade color saved.`,
+                            () => setGradeColor(grade, next),
+                          )
+                        }}
+                        style={({ pressed }) => [
+                          styles.gradeSwatchWrap,
+                          pressed && styles.buttonPressed,
+                          preferenceSaving && styles.buttonDisabled,
                         ]}
-                      />
-                      <Text
-                        allowFontScaling={false}
-                        style={[styles.gradeLabel, { color }]}
                       >
-                        {grade}
-                      </Text>
-                    </View>
-                  ))}
+                        <View
+                          style={[
+                            styles.gradeSwatch,
+                            { backgroundColor: color },
+                          ]}
+                        />
+                        <Text
+                          allowFontScaling={false}
+                          style={[styles.gradeLabel, { color }]}
+                        >
+                          {grade}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
                 </View>
+
+                {Object.entries(gradeColors).some(
+                  ([grade, color]) =>
+                    DEFAULT_GRADE_COLORS[grade as GradeLetter].toUpperCase() !== color.toUpperCase(),
+                ) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Reset grade colors to defaults"
+                    disabled={preferenceSaving}
+                    onPress={() => {
+                      void saveDisplayPreference(
+                        'Grade colors reset to defaults.',
+                        resetGradeColors,
+                      )
+                    }}
+                    style={({ pressed }) => [
+                      styles.gradeColorReset,
+                      pressed && styles.buttonPressed,
+                    ]}
+                  >
+                    <Feather name="rotate-ccw" size={13} color="#BDAAFF" />
+                    <Text style={styles.gradeColorResetText}>Reset to defaults</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
+
+            {preferenceMessage ? (
+              <View
+                accessibilityRole="alert"
+                style={[
+                  styles.messageBanner,
+                  preferenceMessage.includes('Could not')
+                    ? styles.warningBanner
+                    : styles.successBanner,
+                ]}
+              >
+                <Feather
+                  name={preferenceMessage.includes('Could not') ? 'alert-circle' : 'check-circle'}
+                  size={15}
+                  color={preferenceMessage.includes('Could not') ? '#F9B84C' : '#5ED6AE'}
+                />
+                <Text style={styles.messageText}>{preferenceMessage}</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.card}>
@@ -1546,14 +1662,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   profileEmail: {
-    color: '#7083A0',
+    color: '#91A3BD',
     fontFamily: fonts.regular,
     fontSize: 9.5,
     lineHeight: 13,
   },
   futurelyId: {
     marginTop: 3,
-    color: '#5F789B',
+    color: '#91A3BD',
     fontFamily: fonts.regular,
     fontSize: 8.5,
     lineHeight: 11,
@@ -1660,7 +1776,7 @@ const styles = StyleSheet.create({
     borderColor: '#273E5D',
   },
   readOnlyLabel: {
-    color: '#7185A4',
+    color: '#92A5C0',
     fontFamily: fonts.bold,
     fontSize: 8,
     fontWeight: '700',
@@ -1675,7 +1791,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   readOnlySource: {
-    color: '#586C89',
+    color: '#92A5C0',
     fontFamily: fonts.regular,
     fontSize: 7.5,
     lineHeight: 10,
@@ -2132,10 +2248,14 @@ const styles = StyleSheet.create({
   gradePalette: {
     marginTop: 8,
     flexDirection: 'row',
-    gap: 9,
+    flexWrap: 'wrap',
+    gap: 4,
   },
   gradeSwatchWrap: {
+    minWidth: 44,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
   },
   gradeSwatch: {
@@ -2147,6 +2267,25 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 8,
     fontWeight: '700',
+  },
+  gradeColorReset: {
+    minHeight: 44,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#1A2943',
+    borderWidth: 1,
+    borderColor: '#2D496E',
+  },
+  gradeColorResetText: {
+    color: '#C5B7FF',
+    fontFamily: fonts.semiBold,
+    fontSize: 9,
+    fontWeight: '600',
   },
 
   supportRow: {

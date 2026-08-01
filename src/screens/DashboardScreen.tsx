@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import {
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,57 +16,24 @@ import * as studentsApi from '../api/studentsApi'
 import * as gradesApi from '../api/gradesApi'
 import { ApiRequestError } from '../api/client'
 import { Screen } from '../components/ui/Screen'
-import { Card } from '../components/ui/Card'
+import { ActionTile } from '../components/ui/ActionTile'
+import { GpaOverviewCard } from '../components/grades/GpaOverviewCard'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
-import { useCountUp, useCountUpFloat } from '../hooks/useCountUp'
+import { useCountUp } from '../hooks/useCountUp'
 import { useDisplayPreferences } from '../preferences/displayPreferences'
+import {
+  formatAssignmentDueTime,
+  getAssignmentDestination,
+  getDueTodayAssignments,
+} from '../features/assignments/dueToday'
 import type { StudentMe } from '../types/student'
 import type { Assignment } from '../types/assignments'
-import type { GpaSummary } from '../types/grades'
+import type { CurrentGradeCourse, GpaSummary } from '../types/grades'
 import type { MainTabParamList } from '../navigation/MainNavigator'
 import { colors, fonts, spacing, typography } from '../theme/tokens'
 
 type Nav = BottomTabNavigationProp<MainTabParamList>
-
-interface QuickLink {
-  label: string
-  icon: React.ComponentProps<typeof Feather>['name']
-  accent: string
-  accentSoft: string
-  route: keyof MainTabParamList
-}
-
-const QUICK_LINKS: QuickLink[] = [
-  {
-    label: 'Grades',
-    icon: 'bar-chart-2',
-    accent: '#26D6A4',
-    accentSoft: 'rgba(38, 214, 164, 0.14)',
-    route: 'Grades',
-  },
-  {
-    label: 'AI Chat',
-    icon: 'message-circle',
-    accent: '#A083FF',
-    accentSoft: 'rgba(160, 131, 255, 0.15)',
-    route: 'AIChat',
-  },
-  {
-    label: 'Planner',
-    icon: 'calendar',
-    accent: '#FFB52E',
-    accentSoft: 'rgba(255, 181, 46, 0.14)',
-    route: 'Planner',
-  },
-  {
-    label: 'Colleges',
-    icon: 'bookmark',
-    accent: '#61A5FF',
-    accentSoft: 'rgba(97, 165, 255, 0.14)',
-    route: 'Colleges',
-  },
-]
 
 function getTimeOfDay(): string {
   const hour = new Date().getHours()
@@ -84,12 +52,14 @@ export default function DashboardScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>()
   const { user } = useAuth()
   const { hideGpa } = useDisplayPreferences()
-  const { height } = useWindowDimensions()
+  const { height, width } = useWindowDimensions()
   const compact = height < 810
   const veryCompact = height < 710
 
   const [student, setStudent] = useState<StudentMe | null>(null)
   const [gpa, setGpa] = useState<GpaSummary | null>(null)
+  const [courses, setCourses] = useState<CurrentGradeCourse[]>([])
+  const [gpaError, setGpaError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
@@ -97,19 +67,42 @@ export default function DashboardScreen(): React.JSX.Element {
 
   const load = useCallback(async () => {
     setError(null)
+    setGpaError(null)
 
-    try {
-      const [studentResult, gpaResult] = await Promise.all([
-        studentsApi.getMe(),
-        gradesApi.getGpa().catch(() => null),
-      ])
-      setStudent(studentResult)
-      setGpa(gpaResult)
-    } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Could not load your dashboard.')
-    } finally {
-      setLoading(false)
+    const [studentResult, gpaResult, coursesResult] = await Promise.allSettled([
+      studentsApi.getMe(),
+      gradesApi.getGpa(),
+      gradesApi.getCurrentGrades(),
+    ])
+
+    if (studentResult.status === 'fulfilled') {
+      setStudent(studentResult.value)
+    } else {
+      setError(
+        studentResult.reason instanceof ApiRequestError
+          ? studentResult.reason.message
+          : 'Could not load your dashboard.',
+      )
     }
+
+    if (gpaResult.status === 'fulfilled') {
+      setGpa(gpaResult.value)
+    } else {
+      setGpa(null)
+      setGpaError(
+        gpaResult.reason instanceof ApiRequestError
+          ? gpaResult.reason.message
+          : 'Your GPA could not be loaded.',
+      )
+    }
+
+    if (coursesResult.status === 'fulfilled') {
+      setCourses(coursesResult.value.grades)
+    } else {
+      setCourses([])
+    }
+
+    setLoading(false)
   }, [])
 
   useFocusEffect(
@@ -120,56 +113,34 @@ export default function DashboardScreen(): React.JSX.Element {
 
   async function handleResync(): Promise<void> {
     setSyncing(true)
+    setGpaError(null)
 
     try {
       await gradesApi.syncProfile()
       await load()
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : 'Sync failed. Please try again.')
+      setGpaError(err instanceof ApiRequestError ? err.message : 'Sync failed. Please try again.')
     } finally {
       setSyncing(false)
     }
   }
 
   function handleAskAI(): void {
-    navigation.navigate('AIChat')
+    const prompt = aiPrompt.trim()
+    navigation.navigate(
+      'AIChat',
+      prompt ? { initialPrompt: prompt, requestId: Date.now() } : undefined,
+    )
+    setAiPrompt('')
   }
 
-  const profile = student?.profile
-  const weighted = gpa?.weightedGpa ?? profile?.weightedGpa ?? null
-  const unweighted = gpa?.unweightedGpa ?? profile?.unweightedGpa ?? null
-
-  // Normalize API values so the GPA never disappears when the backend returns
-  // null, undefined, or a numeric string.
-  const normalizedWeighted = Number(weighted ?? 0)
-  const normalizedUnweighted = Number(unweighted ?? 0)
-  const safeWeighted = Number.isFinite(normalizedWeighted) ? normalizedWeighted : 0
-  const safeUnweighted = Number.isFinite(normalizedUnweighted) ? normalizedUnweighted : 0
-
   const dueToday: Assignment[] = useMemo(() => {
-    if (!student) return []
-
-    const now = new Date()
-    return student.assignments.filter((assignment) => {
-      if (assignment.completed) return false
-
-      const dueDate = new Date(assignment.dueDate)
-      return (
-        dueDate.getFullYear() === now.getFullYear() &&
-        dueDate.getMonth() === now.getMonth() &&
-        dueDate.getDate() === now.getDate()
-      )
-    })
+    return getDueTodayAssignments(student?.assignments ?? [])
   }, [student])
 
-  const animWeighted = useCountUpFloat(safeWeighted)
-  const animUnweighted = useCountUpFloat(safeUnweighted)
   const animCourses = useCountUp(student?.stats.totalCourses ?? 0)
   const animDueToday = useCountUp(dueToday.length)
   const animPending = useCountUp(student?.stats.pendingAssignments ?? 0)
-
-  const shownWeighted = Number.isFinite(animWeighted) ? animWeighted : safeWeighted
-  const shownUnweighted = Number.isFinite(animUnweighted) ? animUnweighted : safeUnweighted
 
   if (loading) {
     return (
@@ -194,7 +165,11 @@ export default function DashboardScreen(): React.JSX.Element {
   }
 
   const displayName = (student?.name ?? user?.name ?? 'Student').split(' ')[0]
-  const firstDueAssignment = dueToday[0]
+  const dueItemsPerRow = width >= 700 ? 2 : 1
+  const dueRows = Array.from(
+    { length: Math.ceil(dueToday.length / dueItemsPerRow) },
+    (_, index) => dueToday.slice(index * dueItemsPerRow, index * dueItemsPerRow + dueItemsPerRow),
+  )
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -205,8 +180,9 @@ export default function DashboardScreen(): React.JSX.Element {
         <View style={styles.decorativeDotTwo} />
       </View>
 
-      <View
-        style={[
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
           styles.page,
           compact && styles.pageCompact,
           veryCompact && styles.pageVeryCompact,
@@ -241,85 +217,18 @@ export default function DashboardScreen(): React.JSX.Element {
           </View>
         </View>
 
-        <Card
-          variant="gradient"
-          gradientColors={['#8B35FF', '#493DEB']}
-          style={[styles.gpaCard, compact && styles.gpaCardCompact]}
-        >
-          <View pointerEvents="none" style={styles.gpaGlowTop} />
-          <View pointerEvents="none" style={styles.gpaGlowBottom} />
+        <GpaOverviewCard
+          summary={gpa}
+          courses={courses}
+          error={gpaError}
+          syncing={syncing}
+          hidden={hideGpa}
+          onPress={() => navigation.navigate('Grades', { screen: 'GpaSimulator' })}
+          onSync={() => void handleResync()}
+          testID="dashboard-gpa-card"
+        />
 
-          <View style={styles.gpaTopRow}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.navigate('Grades')}
-              style={({ pressed }) => [styles.gpaTitleWrap, pressed && styles.pressed]}
-            >
-              <Text style={styles.gpaEyebrow}>ACADEMIC OVERVIEW</Text>
-              <Text style={[styles.gpaTitle, compact && styles.gpaTitleCompact]}>Your GPA</Text>
-            </Pressable>
-
-            <View style={styles.gpaEyeButton}>
-              <Feather name="eye" size={17} color="rgba(255,255,255,0.86)" />
-            </View>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open grades"
-            onPress={() => navigation.navigate('Grades')}
-            style={({ pressed }) => [styles.gpaMetricsRow, pressed && styles.pressed]}
-          >
-            <View style={styles.gpaMetric}>
-              <Text style={[styles.gpaValue, compact && styles.gpaValueCompact]}>
-                {hideGpa ? '••••' : shownUnweighted.toFixed(3)}
-              </Text>
-              <Text style={styles.gpaCaption}>Unweighted</Text>
-            </View>
-
-            <View style={styles.gpaDivider} />
-
-            <View style={styles.gpaMetric}>
-              <Text
-                style={[
-                  styles.gpaValue,
-                  styles.gpaValueSecondary,
-                  compact && styles.gpaValueCompact,
-                ]}
-              >
-                {hideGpa ? '••••' : shownWeighted.toFixed(3)}
-              </Text>
-              <Text style={styles.gpaCaption}>Weighted</Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Re-sync grades"
-            disabled={syncing}
-            onPress={() => void handleResync()}
-            style={({ pressed }) => [
-              styles.syncButton,
-              pressed && !syncing && styles.syncButtonPressed,
-              syncing && styles.syncButtonDisabled,
-            ]}
-          >
-            <Feather name={syncing ? 'loader' : 'refresh-cw'} size={14} color="#FFFFFF" />
-            <Text style={styles.syncButtonText}>
-              {syncing ? 'Syncing grades...' : 'Re-sync grades'}
-            </Text>
-          </Pressable>
-        </Card>
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('Planner')}
-          style={({ pressed }) => [
-            styles.dueCard,
-            compact && styles.dueCardCompact,
-            pressed && styles.pressed,
-          ]}
-        >
+        <View style={styles.dueSection} testID="dashboard-due-today">
           <View style={styles.dueHeadingRow}>
             <View>
               <Text style={styles.sectionEyebrow}>TODAY</Text>
@@ -331,7 +240,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </View>
 
           {dueToday.length === 0 ? (
-            <View style={[styles.clearState, compact && styles.clearStateCompact]}>
+            <View style={styles.clearState} testID="dashboard-due-empty">
               <View style={styles.clearIcon}>
                 <Feather name="check" size={16} color="#20D3A0" />
               </View>
@@ -343,21 +252,42 @@ export default function DashboardScreen(): React.JSX.Element {
               </View>
             </View>
           ) : (
-            <View style={[styles.assignmentState, compact && styles.assignmentStateCompact]}>
-              <View style={styles.assignmentDot} />
-              <View style={styles.assignmentCopy}>
-                <Text style={styles.assignmentTitle} numberOfLines={1}>
-                  {firstDueAssignment?.title}
-                </Text>
-                <Text style={styles.assignmentSubject} numberOfLines={1}>
-                  {firstDueAssignment?.subject}
-                  {dueToday.length > 1 ? `  •  +${dueToday.length - 1} more` : ''}
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color="#667894" />
+            <View style={styles.dueGrid}>
+              {dueRows.map((row, rowIndex) => (
+                <View key={`due-row-${rowIndex}`} style={styles.dueTileRow}>
+                  {row.map((assignment) => {
+                    const destination = getAssignmentDestination(assignment.id)
+                    const priority = assignment.priority?.trim()
+                    const source = assignment.source?.trim()
+
+                    return (
+                      <ActionTile
+                        key={assignment.id}
+                        title={assignment.title}
+                        subtitle={assignment.subject || 'No subject'}
+                        meta={`Due ${formatAssignmentDueTime(assignment)}${source ? ` · ${source}` : ''}`}
+                        badge={priority || 'Due today'}
+                        icon="clipboard"
+                        color={priority?.toUpperCase() === 'HIGH' ? '#FF777A' : '#FFC547'}
+                        iconBackground="rgba(245,158,11,0.15)"
+                        disabled={destination === null}
+                        onPress={() => {
+                          if (destination) navigation.navigate('Planner', destination)
+                        }}
+                        accessibilityHint={
+                          destination
+                            ? `Open ${assignment.title} in Planner`
+                            : 'This assignment has no valid destination'
+                        }
+                        testID={`dashboard-due-tile-${assignment.id}`}
+                      />
+                    )
+                  })}
+                </View>
+              ))}
             </View>
           )}
-        </Pressable>
+        </View>
 
         <View style={[styles.statsRow, compact && styles.statsRowCompact]}>
           <Pressable
@@ -406,38 +336,6 @@ export default function DashboardScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        <View style={styles.quickSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.sectionEyebrow}>SHORTCUTS</Text>
-              {!veryCompact ? <Text style={styles.sectionTitle}>Quick access</Text> : null}
-            </View>
-            <Feather name="grid" size={17} color="#6D7D96" />
-          </View>
-
-          <View style={styles.quickRow}>
-            {QUICK_LINKS.map((link) => (
-              <Pressable
-                key={link.route}
-                accessibilityRole="button"
-                onPress={() => navigation.navigate(link.route)}
-                style={({ pressed }) => [
-                  styles.quickButton,
-                  compact && styles.quickButtonCompact,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View style={[styles.quickIcon, { backgroundColor: link.accentSoft }]}>
-                  <Feather name={link.icon} size={21} color={link.accent} />
-                </View>
-                <Text style={styles.quickLabel} numberOfLines={1}>
-                  {link.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
         <View style={styles.aiSection}>
           {!veryCompact ? (
             <View style={styles.aiLabelRow}>
@@ -473,28 +371,26 @@ export default function DashboardScreen(): React.JSX.Element {
         </View>
 
         {error ? <Text style={styles.inlineError}>{error}</Text> : null}
-      </View>
+      </ScrollView>
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
   page: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
-    gap: 9,
+    gap: 14,
     paddingTop: 8,
-    paddingBottom: 8,
+    paddingBottom: 118,
   },
   pageCompact: {
-    gap: 7,
+    gap: 12,
     paddingTop: 5,
-    paddingBottom: 5,
   },
   pageVeryCompact: {
-    gap: 5,
+    gap: 10,
     paddingTop: 3,
-    paddingBottom: 3,
   },
   decorativeLayer: {
     ...StyleSheet.absoluteFillObject,
@@ -611,141 +507,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#0A1220',
   },
-  gpaCard: {
-    minHeight: 202,
+  dueSection: {
     width: '100%',
-    borderRadius: 22,
-    padding: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(197, 179, 255, 0.28)',
-    shadowColor: '#6B39FF',
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 9 },
-    elevation: 8,
-  },
-  gpaCardCompact: {
-    minHeight: 184,
-    padding: 13,
-  },
-  gpaGlowTop: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    top: -120,
-    left: -45,
-  },
-  gpaGlowBottom: {
-    position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: 'rgba(26, 41, 183, 0.17)',
-    right: -112,
-    bottom: -150,
-  },
-  gpaTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  gpaTitleWrap: {
-    flex: 1,
-  },
-  gpaEyebrow: {
-    ...typography.label,
-    color: 'rgba(244, 241, 255, 0.62)',
-    letterSpacing: 1,
-    fontSize: 9,
-  },
-  gpaTitle: {
-    ...typography.h2,
-    color: '#FFFFFF',
-    marginTop: 1,
-    fontSize: 20,
-  },
-  gpaTitleCompact: {
-    fontSize: 18,
-  },
-  gpaEyeButton: {
-    width: 35,
-    height: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  gpaMetricsRow: {
-    width: '100%',
-    height: 78,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-  },
-  gpaMetric: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  gpaDivider: {
-    width: 1,
-    height: 46,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  gpaValue: {
-    ...typography.display,
-    color: '#FFFFFF',
-    fontSize: 35,
-    lineHeight: 41,
-    letterSpacing: -1.1,
-  },
-  gpaValueCompact: {
-    fontSize: 31,
-    lineHeight: 35,
-  },
-  gpaValueSecondary: {
-    color: '#E4E8FF',
-  },
-  gpaCaption: {
-    ...typography.caption,
-    color: 'rgba(244, 241, 255, 0.72)',
-    marginTop: 1,
-    fontSize: 10,
-  },
-  syncButton: {
-    height: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  syncButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    transform: [{ scale: 0.99 }],
-  },
-  syncButtonDisabled: {
-    opacity: 0.72,
-  },
-  syncButtonText: {
-    ...typography.body,
-    color: '#FFFFFF',
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  dueCard: {
-    minHeight: 118,
-    width: '100%',
-    gap: 9,
+    gap: 11,
     padding: 14,
     borderRadius: 20,
     backgroundColor: 'rgba(17, 31, 52, 0.94)',
@@ -757,11 +521,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
-  dueCardCompact: {
-    minHeight: 106,
-    padding: 12,
-    gap: 7,
-  },
   dueHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -769,7 +528,7 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: {
     ...typography.label,
-    color: '#5E79A1',
+    color: '#8299BA',
     letterSpacing: 1.05,
     fontSize: 9,
   },
@@ -803,9 +562,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(21, 214, 160, 0.12)',
   },
-  clearStateCompact: {
-    minHeight: 48,
-  },
   clearIcon: {
     width: 34,
     height: 34,
@@ -830,42 +586,15 @@ const styles = StyleSheet.create({
     marginTop: 1,
     fontSize: 10,
   },
-  assignmentState: {
-    minHeight: 57,
-    flexDirection: 'row',
-    alignItems: 'center',
+  dueGrid: {
+    width: '100%',
     gap: 10,
-    paddingHorizontal: 12,
-    borderRadius: 15,
-    backgroundColor: 'rgba(28, 30, 48, 0.72)',
-    borderWidth: 1,
-    borderColor: 'rgba(246, 174, 45, 0.11)',
   },
-  assignmentStateCompact: {
-    minHeight: 48,
-  },
-  assignmentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F6AE2D',
-  },
-  assignmentCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  assignmentTitle: {
-    ...typography.body,
-    color: '#EEF3FC',
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  assignmentSubject: {
-    ...typography.caption,
-    color: '#7B8BA2',
-    marginTop: 1,
-    fontSize: 10,
+  dueTileRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
   },
   statsRow: {
     width: '100%',
@@ -920,73 +649,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 12,
   },
-  quickSection: {
-    width: '100%',
-    gap: 7,
-    marginBottom: 0,
-  },
-  sectionHeaderRow: {
-    minHeight: 25,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    ...typography.h3,
-    color: '#EDF3FF',
-    marginTop: 1,
-    fontSize: 15,
-  },
-  quickRow: {
-    width: '100%',
-    minHeight: 96,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-  },
-  quickButton: {
-    width: '23.4%',
-    minHeight: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 10,
-    borderRadius: 17,
-    backgroundColor: '#111F34',
-    borderWidth: 1,
-    borderColor: 'rgba(82, 111, 154, 0.34)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  quickButtonCompact: {
-    minHeight: 84,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  quickIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickLabel: {
-    ...typography.caption,
-    color: '#D7DFEC',
-    fontFamily: fonts.bold,
-    fontWeight: '700',
-    fontSize: 10,
-    lineHeight: 12,
-    textAlign: 'center',
-  },
   aiSection: {
     width: '100%',
     gap: 5,
-    marginTop: 'auto',
   },
   aiLabelRow: {
     minHeight: 18,

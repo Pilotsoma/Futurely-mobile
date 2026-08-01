@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/inter'
 
 import { AuthProvider } from './src/context/AuthContext'
+import { DisplayPreferencesProvider } from './src/preferences/displayPreferences'
 import RootNavigator from './src/navigation/RootNavigator'
 import { colors, fonts } from './src/theme/tokens'
 
@@ -49,7 +50,9 @@ export default function App(): React.JSX.Element | null {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <AuthProvider>
-          <RootNavigator />
+          <DisplayPreferencesProvider>
+            <RootNavigator />
+          </DisplayPreferencesProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

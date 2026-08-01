@@ -7,14 +7,15 @@ type Letter = keyof typeof gradeColors
 interface GradeBadgeProps {
   letter: string | null
   size?: 'sm' | 'lg'
+  color?: string
 }
 
 function isLetter(l: string): l is Letter {
   return l === 'A' || l === 'B' || l === 'C' || l === 'D' || l === 'F'
 }
 
-export function GradeBadge({ letter, size = 'sm' }: GradeBadgeProps): React.JSX.Element {
-  const color = letter && isLetter(letter) ? gradeColors[letter] : colors.textMuted
+export function GradeBadge({ letter, size = 'sm', color: colorOverride }: GradeBadgeProps): React.JSX.Element {
+  const color = colorOverride ?? (letter && isLetter(letter) ? gradeColors[letter] : colors.textMuted)
   const dimension = size === 'lg' ? 40 : 28
 
   return (

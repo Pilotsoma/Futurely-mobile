@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import * as assignmentsApi from '../api/assignmentsApi'
 import { ApiRequestError } from '../api/client'
@@ -12,6 +12,7 @@ import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { ErrorRetryBlock } from '../components/ui/ErrorRetryBlock'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { Assignment } from '../types/assignments'
+import type { MainTabParamList } from '../navigation/MainNavigator'
 import { colors, fonts, radii, spacing, typography } from '../theme/tokens'
 
 type Group = 'Overdue' | 'Today' | 'Tomorrow' | 'This Week' | 'Later' | 'Completed'
@@ -49,6 +50,7 @@ function groupFor(assignment: Assignment): Group {
 }
 
 export default function PlannerScreen(): React.JSX.Element {
+  const route = useRoute<RouteProp<MainTabParamList, 'Planner'>>()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [cursor, setCursor] = useState<number | null>(null)
   const [hasNextPage, setHasNextPage] = useState(false)
@@ -145,6 +147,14 @@ export default function PlannerScreen(): React.JSX.Element {
   }
 
   const [showCompleted, setShowCompleted] = useState(false)
+  const requestedAssignmentId = route.params?.assignmentId
+  const hasValidRequestedId =
+    requestedAssignmentId === undefined ||
+    (Number.isInteger(requestedAssignmentId) && requestedAssignmentId > 0)
+  const selectedAssignment =
+    requestedAssignmentId === undefined
+      ? null
+      : assignments.find((assignment) => assignment.id === requestedAssignmentId) ?? null
 
   const { activeSections, completedItems } = useMemo(() => {
     const grouped = new Map<Group, Assignment[]>(GROUP_ORDER.map((g) => [g, []]))
@@ -169,10 +179,15 @@ export default function PlannerScreen(): React.JSX.Element {
   // functional setState updater, so no other closure state can go stale here.
   const renderAssignment = useCallback(
     ({ item }: { item: Assignment }) => (
-      <AssignmentRow item={item} onToggle={() => void handleToggleComplete(item)} onDelete={() => void handleDelete(item)} />
+      <AssignmentRow
+        item={item}
+        selected={item.id === requestedAssignmentId}
+        onToggle={() => void handleToggleComplete(item)}
+        onDelete={() => void handleDelete(item)}
+      />
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assignments],
+    [assignments, requestedAssignmentId],
   )
 
   if (loading) {
@@ -224,6 +239,38 @@ export default function PlannerScreen(): React.JSX.Element {
           {createError ? <Text style={styles.error}>{createError}</Text> : null}
           <Button label="Create" onPress={() => void handleCreate()} loading={creating} />
         </Card>
+      ) : null}
+
+      {requestedAssignmentId !== undefined ? (
+        selectedAssignment ? (
+          <Card style={styles.selectedAssignment}>
+            <View style={styles.selectedAssignmentHeading}>
+              <View style={styles.selectedAssignmentIcon}>
+                <Feather name="clipboard" size={17} color={colors.warning} />
+              </View>
+              <View style={styles.selectedAssignmentCopy}>
+                <Text style={styles.selectedAssignmentEyebrow}>OPENED ASSIGNMENT</Text>
+                <Text style={styles.selectedAssignmentTitle}>{selectedAssignment.title}</Text>
+              </View>
+            </View>
+            <Text style={styles.selectedAssignmentMeta}>
+              {selectedAssignment.subject || 'No subject'} · Due {formatDueDate(selectedAssignment)}
+            </Text>
+            <Text style={styles.selectedAssignmentMeta}>
+              {selectedAssignment.completed ? 'Completed' : 'Incomplete'}
+              {selectedAssignment.priority ? ` · ${selectedAssignment.priority} priority` : ''}
+            </Text>
+          </Card>
+        ) : (
+          <View style={styles.routeError} accessibilityRole="alert">
+            <Feather name="alert-circle" size={16} color={colors.error} />
+            <Text style={styles.routeErrorText}>
+              {hasValidRequestedId
+                ? 'That assignment is no longer available.'
+                : 'The assignment link is invalid.'}
+            </Text>
+          </View>
+        )
       ) : null}
 
       {activeSections.length === 0 && completedItems.length === 0 ? (
@@ -285,22 +332,31 @@ export default function PlannerScreen(): React.JSX.Element {
 
 interface AssignmentRowProps {
   item: Assignment
+  selected: boolean
   onToggle: () => void
   onDelete: () => void
 }
 
 const AssignmentRow = React.memo(function AssignmentRow({
   item,
+  selected,
   onToggle,
   onDelete,
 }: AssignmentRowProps): React.JSX.Element {
   return (
-    <Card style={[styles.assignmentCard, item.completed && styles.assignmentCardCompleted]}>
+    <Card
+      style={[
+        styles.assignmentCard,
+        item.completed && styles.assignmentCardCompleted,
+        selected && styles.assignmentCardSelected,
+      ]}
+    >
       <Pressable
+        testID={`planner-assignment-${item.id}`}
         style={styles.assignmentMain}
         onPress={onToggle}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.completed }}
+        accessibilityState={{ checked: item.completed, selected }}
       >
         <View style={[styles.checkbox, item.completed && styles.checkboxChecked]}>
           {item.completed ? <Feather name="check" size={11} color={colors.bg} /> : null}
@@ -341,6 +397,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   createCard: { gap: spacing.sm, marginBottom: spacing.md },
+  selectedAssignment: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    borderColor: 'rgba(245,158,11,0.42)',
+    backgroundColor: 'rgba(245,158,11,0.08)',
+  },
+  selectedAssignmentHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  selectedAssignmentIcon: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.sm,
+    backgroundColor: 'rgba(245,158,11,0.14)',
+  },
+  selectedAssignmentCopy: { flex: 1, minWidth: 0 },
+  selectedAssignmentEyebrow: {
+    ...typography.label,
+    color: colors.warning,
+    fontSize: 9,
+  },
+  selectedAssignmentTitle: { ...typography.h3, color: colors.text },
+  selectedAssignmentMeta: { ...typography.caption, color: colors.textSecondary },
+  routeError: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.ms,
+    borderWidth: 1,
+    borderColor: 'rgba(255,100,103,0.28)',
+    borderRadius: radii.sm,
+    backgroundColor: 'rgba(255,100,103,0.08)',
+  },
+  routeErrorText: { ...typography.caption, flex: 1, color: colors.error },
   error: { ...typography.caption, color: colors.error },
   listContent: { paddingBottom: spacing.xl },
   sectionHeaderRow: {
@@ -368,6 +464,10 @@ const styles = StyleSheet.create({
     padding: spacing.ms,
   },
   assignmentCardCompleted: { opacity: 0.6 },
+  assignmentCardSelected: {
+    borderColor: colors.warning,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+  },
   assignmentMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.ms },
   checkbox: {
     width: 20,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useDisplayPreferences } from '../preferences/displayPreferences'
 
 // Mirrors web's useCountUp/useCountUpFloat (app/(app)/dashboard/page.tsx) —
 // an eased count-up so numbers "land" with a bit of life instead of just
@@ -6,8 +7,13 @@ import { useEffect, useState } from 'react'
 
 export function useCountUp(target: number | null, duration = 700): number {
   const [val, setVal] = useState(0)
+  const { reduceMotion } = useDisplayPreferences()
 
   useEffect(() => {
+    if (reduceMotion) {
+      setVal(target ?? 0)
+      return
+    }
     if (target === null || target === 0) {
       setVal(target ?? 0)
       return
@@ -23,15 +29,20 @@ export function useCountUp(target: number | null, duration = 700): number {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [target, duration])
+  }, [target, duration, reduceMotion])
 
   return val
 }
 
 export function useCountUpFloat(target: number | null, duration = 900): number {
   const [val, setVal] = useState(0)
+  const { reduceMotion } = useDisplayPreferences()
 
   useEffect(() => {
+    if (reduceMotion) {
+      setVal(target ?? 0)
+      return
+    }
     if (target === null) {
       setVal(0)
       return
@@ -47,7 +58,7 @@ export function useCountUpFloat(target: number | null, duration = 900): number {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [target, duration])
+  }, [target, duration, reduceMotion])
 
   return val
 }

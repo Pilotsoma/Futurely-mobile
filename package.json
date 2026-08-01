@@ -35,6 +35,8 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1",
     "@types/jest": "29.5.14",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.10",
@@ -57,13 +59,18 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "test": "jest --runInBand",
+    "test:e2e": "playwright test",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:a11y": "playwright test e2e/accessibility.spec.ts",
+    "web:e2e": "node e2e/serve-export.cjs",
     "test:all": "npm run test && npm run backend:test",
     "check": "npm run typecheck && npm run lint && npm run test:all && npm run backend:build"
   },
   "jest": {
     "preset": "jest-expo",
     "testPathIgnorePatterns": [
-      "/backend/"
+      "/backend/",
+      "/e2e/"
     ]
   },
   "private": true

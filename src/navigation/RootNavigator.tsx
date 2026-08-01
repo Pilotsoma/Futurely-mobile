@@ -19,6 +19,7 @@ import AuthNavigator from './AuthNavigator'
 import ConnectSchoolNavigator from './ConnectSchoolNavigator'
 import MainNavigator from './MainNavigator'
 import AccountRestrictionScreen from '../screens/AccountRestrictionScreen'
+import { linking } from './linking'
 import { colors } from '../theme/tokens'
 
 export default function RootNavigator(): React.JSX.Element {
@@ -51,7 +52,7 @@ export default function RootNavigator(): React.JSX.Element {
     navigator = <MainNavigator />
   }
 
-  return <NavigationContainer>{navigator}</NavigationContainer>
+  return <NavigationContainer linking={linking}>{navigator}</NavigationContainer>
 }
 
 const styles = StyleSheet.create({
